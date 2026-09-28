@@ -20,7 +20,7 @@ export default function Sidebar() {
         <h1 className="text-xl font-bold text-gradient">VibeTogether</h1>
       </div>
       
-      <nav className="flex-1 px-4 space-y-2">
+      <nav className="flex-1 px-4 space-y-2 tour-sidebar-nav">
         {navItems.map((item) => (
           <NavLink
             key={item.to}

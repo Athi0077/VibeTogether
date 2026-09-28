@@ -4,6 +4,7 @@ import Sidebar from './Sidebar';
 import MobileBottomNav from './MobileBottomNav';
 import MusicPlayer from './MusicPlayer';
 import MusicRequestPopup from './MusicRequestPopup';
+import UserTour from './UserTour';
 import { useAudio } from '../context/AudioContext';
 import { AnimatePresence, motion } from 'framer-motion';
 
@@ -13,6 +14,7 @@ export default function AppLayout() {
   
   return (
     <div className="flex h-[100dvh] bg-[#050308] overflow-hidden text-white">
+      <UserTour />
       {/* Desktop Sidebar */}
       <Sidebar />
 

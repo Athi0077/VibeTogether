@@ -148,7 +148,7 @@ export default function HomePage() {
         <p className="text-gray-400">Ready to discover new music?</p>
       </motion.div>
 
-      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="relative mb-8">
+      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="tour-search-bar relative mb-8">
         <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
         <input 
           type="text" 
@@ -224,7 +224,7 @@ export default function HomePage() {
                 <div className="flex items-center gap-2">
                   <button 
                     onClick={(e) => handleStartParty(e, friend._id)}
-                    className="h-10 px-3 rounded-full bg-purple-600/20 text-purple-300 hover:bg-purple-600 hover:text-white flex items-center gap-2 transition-all hover:scale-105"
+                    className="tour-party-mode h-10 px-3 rounded-full bg-purple-600/20 text-purple-300 hover:bg-purple-600 hover:text-white flex items-center gap-2 transition-all hover:scale-105"
                     title="Start Listening Party"
                   >
                     <Music size={16} />
