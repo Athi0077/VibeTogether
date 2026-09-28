@@ -24,6 +24,8 @@ export default function ChatPage() {
   const [isPlaylistOpen, setIsPlaylistOpen] = useState(false);
   const [typingUsers, setTypingUsers] = useState(new Set());
   const messagesEndRef = useRef(null);
+  const messagesContainerRef = useRef(null);
+  const isNearBottomRef = useRef(true);
   
   const { togglePlay, currentSong, isPlaying, setActiveConversationId } = useAudio();
   const { socket } = useSocket();
@@ -120,8 +122,19 @@ export default function ChatPage() {
     }
   }, [activeConversation, socket]);
 
+  const handleScroll = () => {
+    const container = messagesContainerRef.current;
+    if (!container) return;
+    
+    // Check if user is within 100px of the bottom
+    const { scrollTop, scrollHeight, clientHeight } = container;
+    isNearBottomRef.current = scrollHeight - scrollTop - clientHeight < 100;
+  };
+
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    if (isNearBottomRef.current) {
+      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    }
   }, [messages, typingUsers]);
 
   useEffect(() => {
@@ -131,16 +144,6 @@ export default function ChatPage() {
       setActiveConversationId(null);
     }
   }, [activeConversation, setActiveConversationId]);
-
-  useEffect(() => {
-    // Hide bottom navigation on mobile when a chat is open
-    const event = new CustomEvent('toggle-bottom-nav', { detail: { hidden: !!selectedFriend } });
-    window.dispatchEvent(event);
-    
-    return () => {
-      window.dispatchEvent(new CustomEvent('toggle-bottom-nav', { detail: { hidden: false } }));
-    };
-  }, [selectedFriend]);
 
   const handleTyping = (e) => {
     setInputText(e.target.value);
@@ -190,7 +193,7 @@ export default function ChatPage() {
 
 
   return (
-    <div className="flex flex-1 w-full bg-[#050308]">
+    <div className="flex h-full w-full bg-[#050308] overflow-hidden">
       {/* Sidebar List (Hidden on mobile if a friend is selected) */}
       <div className={`w-full md:w-80 border-r border-white/5 flex flex-col ${selectedFriend ? 'hidden md:flex' : 'flex'}`}>
         <div className="p-4 border-b border-white/5 bg-glass-card z-10">
@@ -239,7 +242,7 @@ export default function ChatPage() {
           </div>
         ) : (
           <>
-            <header className="bg-glass-card border-b border-white/5 p-4 flex items-center justify-between z-10">
+            <header className="bg-glass-card border-b border-white/5 p-4 flex items-center justify-between z-10 shrink-0">
               <div className="flex items-center gap-3">
                 <button onClick={handleBackToList} className="md:hidden p-2 -ml-2 text-gray-400 hover:text-white">
                   <ArrowLeft size={24} />
@@ -271,9 +274,13 @@ export default function ChatPage() {
               )}
             </header>
             
-            <div className="flex-1 flex overflow-hidden relative">
-              <div className="flex-1 flex flex-col overflow-hidden relative">
-                <div className="flex-1 overflow-y-auto p-4 space-y-4">
+            <div className="flex-1 flex overflow-hidden relative min-h-0">
+              <div className="flex-1 flex flex-col overflow-hidden relative min-h-0">
+                <div 
+                  ref={messagesContainerRef}
+                  onScroll={handleScroll}
+                  className="flex-1 overflow-y-auto p-4 space-y-4 min-h-0"
+                >
               {messages.map(msg => {
                 const isMe = msg.senderId?._id === user?._id;
                 const timeStr = new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -306,7 +313,7 @@ export default function ChatPage() {
               <div ref={messagesEndRef} />
             </div>
 
-            <div className="p-3 md:p-4 bg-glass-card border-t border-white/5 z-10">
+            <div className="p-3 md:p-4 bg-glass-card border-t border-white/5 z-10 shrink-0">
               <div className="flex items-center gap-2 md:gap-3 bg-black/40 p-1 md:p-2 rounded-2xl border border-white/5">
                 <input 
                   type="text" 
