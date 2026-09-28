@@ -172,6 +172,9 @@ export function AudioProvider({ children }) {
     audio.play().catch(() => {}).finally(() => audio.pause());
 
     if (activeConversationId && socket) {
+       setCurrentSong(song);
+       setIsLoading(true);
+
        // Shared session: Just emit, let the server dictate state
        socket.emit('music:play', {
          conversationId: activeConversationId,
