@@ -80,10 +80,16 @@ describe('Socket.IO Real-time Features (Phase 3 Checklist)', () => {
     }, 50);
   });
 
-  // 2. User 1 song Play செய்தால் User 2-க்கும் play ஆக வேண்டும்
-  it('should sync play state from User 1 to User 2', (done) => {
+  // 2. User 1 song Play செய்தால் User 2-க்கு request வர வேண்டும், accept செய்த பின் play ஆக வேண்டும்
+  it('should sync play state from User 1 to User 2 after acceptance', (done) => {
     client1.emit('conversation:join', conversationId);
     client2.emit('conversation:join', conversationId);
+
+    client2.on('music:request_accept', (data) => {
+      expect(data.songId).toBe('song123');
+      // User 2 accepts
+      client2.emit('music:accept', { conversationId });
+    });
 
     client2.on('music:state', (state) => {
       expect(state.isPlaying).toBe(true);
@@ -120,14 +126,22 @@ describe('Socket.IO Real-time Features (Phase 3 Checklist)', () => {
     });
 
     setTimeout(() => {
-      client1.emit('music:pause', { conversationId, playbackPosition: 15 });
+      // First, need to set it to active state!
+      client1.emit('music:play', { conversationId, songId: 'dummy', playbackPosition: 0 });
+      setTimeout(() => {
+        client1.emit('music:accept', { conversationId }); // To force active state for tests
+        setTimeout(() => {
+          client1.emit('music:pause', { conversationId, playbackPosition: 15 });
+        }, 20);
+      }, 20);
     }, 50);
   });
 
   // 4. புதிதாக chat-ல் join செய்பவருக்கு current song state கிடைக்க வேண்டும்
   it('should send current state to newly joined users', (done) => {
-    // User 1 plays a song
+    // User 1 plays a song and forces active
     client1.emit('music:play', { conversationId, songId: 'song456', playbackPosition: 10 });
+    client1.emit('music:accept', { conversationId });
     
     // User 2 joins later and requests state
     setTimeout(() => {
@@ -167,6 +181,7 @@ describe('Socket.IO Real-time Features (Phase 3 Checklist)', () => {
   // 6. Internet reconnect ஆனதும் playback state மீண்டும் sync ஆக வேண்டும்
   it('should resync upon reconnection', (done) => {
     client1.emit('music:play', { conversationId, songId: 'song789', playbackPosition: 50 });
+    client1.emit('music:accept', { conversationId });
     
     setTimeout(() => {
       client2.disconnect(); // simulate disconnect
