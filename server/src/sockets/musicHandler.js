@@ -1,4 +1,5 @@
 const Conversation = require('../models/Conversation');
+const crypto = require('crypto');
 
 const playbackStates = new Map();
 
@@ -24,88 +25,79 @@ module.exports = (io, socket) => {
   socket.on('music:play', async (data) => {
     const { conversationId, songId, playbackPosition } = data;
     if (!conversationId || !songId) return;
-
     if (!(await checkMembership(conversationId))) return;
 
-    let state = playbackStates.get(conversationId) || { revision: 0, status: 'inactive' };
-    
-    // First-Time Play - Acceptance Required
-    if (state.status === 'inactive' || !state.status) {
-      playbackStates.set(conversationId, {
-        ...state,
-        status: 'pending',
-        pendingSongId: songId,
-        initiatorId: user._id,
-        conversationId
-      });
-      // Emit request_accept to others in the room
-      socket.to(`conv:${conversationId}`).emit('music:request_accept', {
-        initiatorId: user._id,
-        songId,
-        conversationId
-      });
-      // Notify the initiator that they are pending acceptance
-      socket.emit('music:pending', { songId, conversationId });
-      return;
-    }
+    let state = playbackStates.get(conversationId) || { revision: 0, status: 'idle' };
+    const requestId = crypto.randomUUID();
 
-    // If active, just play the new song
-    if (state.status === 'active') {
-      playbackStates.set(conversationId, {
-        ...state,
-        songId,
-        playbackPosition: playbackPosition || 0, // Reset to 0 on new song
-        isPlaying: true,
-        serverTimestamp: Date.now(),
-        revision: state.revision + 1,
-        updatedBy: user._id
-      });
-      broadcastState(conversationId);
-    }
+    // Always require acceptance for a new play request
+    const newState = {
+      ...state,
+      status: 'pending',
+      requestId,
+      pendingSongId: songId,
+      initiatorId: user._id,
+      conversationId,
+      playbackPosition: playbackPosition || 0
+    };
+    playbackStates.set(conversationId, newState);
+
+    socket.to(`conv:${conversationId}`).emit('music:request_accept', {
+      requestId,
+      initiatorId: user._id,
+      songId,
+      conversationId,
+      playbackPosition: newState.playbackPosition
+    });
+
+    socket.emit('music:pending', { requestId, songId, conversationId });
   });
 
   socket.on('music:accept', async (data) => {
-    const { conversationId } = data;
-    if (!conversationId) return;
+    const { conversationId, requestId } = data;
+    if (!conversationId || !requestId) return;
     if (!(await checkMembership(conversationId))) return;
 
     let state = playbackStates.get(conversationId);
-    if (!state || state.status !== 'pending') return;
+    if (!state || state.status !== 'pending' || state.requestId !== requestId) return;
 
-    // Transition to active and start playing the pending song
+    const startAt = Date.now() + 1000; // 1 second buffer for sync
+
     playbackStates.set(conversationId, {
       ...state,
-      status: 'active',
+      status: 'playing', // using 'playing' instead of 'active'
       songId: state.pendingSongId,
       pendingSongId: null,
       initiatorId: null,
-      playbackPosition: 0,
+      playbackPosition: state.playbackPosition,
       isPlaying: true,
-      serverTimestamp: Date.now(),
+      serverTimestamp: startAt,
+      startAt: startAt,
       revision: state.revision + 1,
       updatedBy: user._id
     });
     
+    io.to(`conv:${conversationId}`).emit('music:accepted', { conversationId, requestId, startAt });
     broadcastState(conversationId);
   });
 
   socket.on('music:reject', async (data) => {
-    const { conversationId } = data;
-    if (!conversationId) return;
+    const { conversationId, requestId } = data;
+    if (!conversationId || !requestId) return;
     if (!(await checkMembership(conversationId))) return;
 
     let state = playbackStates.get(conversationId);
-    if (!state || state.status !== 'pending') return;
+    if (!state || state.status !== 'pending' || state.requestId !== requestId) return;
 
-    // Reset to inactive
     playbackStates.set(conversationId, {
       ...state,
-      status: 'inactive',
+      status: 'rejected',
       pendingSongId: null,
       initiatorId: null
     });
     
     io.to(`conv:${conversationId}`).emit('music:rejected', {
+      requestId,
       userId: user._id,
       conversationId
     });
@@ -151,7 +143,7 @@ module.exports = (io, socket) => {
     if (!(await checkMembership(conversationId))) return;
 
     playbackStates.set(conversationId, {
-      status: 'inactive',
+      status: 'idle',
       songId: null,
       pendingSongId: null,
       initiatorId: null,
@@ -195,16 +187,18 @@ module.exports = (io, socket) => {
     if (typeof callback === 'function') {
       callback({ state });
     } else if (state) {
-      if (state.status === 'active') {
+      if (state.status === 'playing') {
         socket.emit('music:state', state);
       } else if (state.status === 'pending') {
         if (state.initiatorId === user._id) {
-          socket.emit('music:pending', { songId: state.pendingSongId, conversationId });
+          socket.emit('music:pending', { requestId: state.requestId, songId: state.pendingSongId, conversationId });
         } else {
           socket.emit('music:request_accept', {
+            requestId: state.requestId,
             initiatorId: state.initiatorId,
             songId: state.pendingSongId,
-            conversationId
+            conversationId,
+            playbackPosition: state.playbackPosition
           });
         }
       }

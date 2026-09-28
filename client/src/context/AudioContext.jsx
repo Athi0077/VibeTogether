@@ -81,7 +81,7 @@ export function AudioProvider({ children }) {
 
       const audio = audioRef.current;
       isRemoteActionRef.current = true;
-      setSessionStatus('active');
+      setSessionStatus('playing');
       setPendingInitiator(false);
       setIncomingRequest(null);
 
@@ -113,6 +113,15 @@ export function AudioProvider({ children }) {
         }
 
         let expectedPosition = state.playbackPosition;
+        
+        // Wait for startAt if it's in the future
+        if (state.isPlaying && state.startAt) {
+          const delay = state.startAt - Date.now();
+          if (delay > 0) {
+            await new Promise(res => setTimeout(res, delay));
+          }
+        }
+
         if (state.isPlaying) {
            const drift = (Date.now() - state.serverTimestamp) / 1000;
            expectedPosition += drift;
@@ -148,7 +157,7 @@ export function AudioProvider({ children }) {
     };
 
     const handleMusicRejected = (data) => {
-      setSessionStatus('inactive');
+      setSessionStatus('idle');
       setPendingInitiator(false);
       setIncomingRequest(null);
       alert('Your partner rejected the music request.');
@@ -165,7 +174,7 @@ export function AudioProvider({ children }) {
       setIsPlaying(false);
       setCurrentSong(null);
       setProgress(0);
-      setSessionStatus('inactive');
+      setSessionStatus('idle');
       setPendingInitiator(false);
       setIncomingRequest(null);
       isRemoteActionRef.current = false;
@@ -193,10 +202,7 @@ export function AudioProvider({ children }) {
     audio.play().catch(() => {}).finally(() => audio.pause());
 
     if (activeConversationId && socket) {
-       setCurrentSong(song);
-       setIsLoading(true);
-
-       // Shared session: Just emit, let the server dictate state
+       // Do not set current song or loading until accepted
        socket.emit('music:play', {
          conversationId: activeConversationId,
          songId: song._id,
@@ -244,16 +250,17 @@ export function AudioProvider({ children }) {
           });
         }
       } else {
-        await audio.play();
-        setIsPlaying(true);
-        
         if (socket && !isRemoteActionRef.current && activeConversationId) {
           socket.emit('music:play', {
             conversationId: activeConversationId,
             songId: currentSong._id,
             playbackPosition: audio.currentTime
           });
+          return;
         }
+
+        await audio.play();
+        setIsPlaying(true);
       }
     } catch (e) {
       console.error(e);
@@ -300,16 +307,22 @@ export function AudioProvider({ children }) {
 
   const acceptMusicRequest = () => {
     if (socket && incomingRequest) {
-      socket.emit('music:accept', { conversationId: incomingRequest.conversationId });
+      socket.emit('music:accept', { 
+        conversationId: incomingRequest.conversationId,
+        requestId: incomingRequest.requestId 
+      });
       setIncomingRequest(null);
     }
   };
 
   const rejectMusicRequest = () => {
     if (socket && incomingRequest) {
-      socket.emit('music:reject', { conversationId: incomingRequest.conversationId });
+      socket.emit('music:reject', { 
+        conversationId: incomingRequest.conversationId,
+        requestId: incomingRequest.requestId
+      });
       setIncomingRequest(null);
-      setSessionStatus('inactive');
+      setSessionStatus('idle');
     }
   };
 
