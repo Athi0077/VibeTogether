@@ -196,7 +196,7 @@ export default function SharedPlaylist({ conversationId, partnerName, onClose })
 
                 <button 
                   onClick={() => handleRemoveSong(song._id)}
-                  className="p-1.5 text-gray-500 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition opacity-0 group-hover:opacity-100 shrink-0"
+                  className="p-1.5 text-gray-500 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition shrink-0"
                 >
                   <Trash2 size={16} />
                 </button>
