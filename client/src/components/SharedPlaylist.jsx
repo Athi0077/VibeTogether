@@ -66,6 +66,9 @@ export default function SharedPlaylist({ conversationId, partnerName, onClose })
 
   const handleRemoveSong = async (songId) => {
     try {
+      if (currentSong?._id === songId) {
+        playNext();
+      }
       await api.delete(`/playlists/${conversationId}/remove/${songId}`);
     } catch (e) {
       console.error(e);

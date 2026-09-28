@@ -2,6 +2,7 @@ import { Outlet } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import MobileBottomNav from './MobileBottomNav';
 import MusicPlayer from './MusicPlayer';
+import MusicRequestPopup from './MusicRequestPopup';
 import { useAudio } from '../context/AudioContext';
 
 export default function AppLayout() {
@@ -21,6 +22,7 @@ export default function AppLayout() {
 
       {/* Music Player */}
       <MusicPlayer />
+      <MusicRequestPopup />
 
       {/* Mobile Bottom Navigation */}
       <MobileBottomNav />

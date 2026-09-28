@@ -27,19 +27,101 @@ module.exports = (io, socket) => {
 
     if (!(await checkMembership(conversationId))) return;
 
-    let state = playbackStates.get(conversationId) || { revision: 0 };
+    let state = playbackStates.get(conversationId) || { revision: 0, status: 'inactive' };
     
+    // First-Time Play - Acceptance Required
+    if (state.status === 'inactive' || !state.status) {
+      playbackStates.set(conversationId, {
+        ...state,
+        status: 'pending',
+        pendingSongId: songId,
+        initiatorId: user._id,
+        conversationId
+      });
+      // Emit request_accept to others in the room
+      socket.to(`conv:${conversationId}`).emit('music:request_accept', {
+        initiatorId: user._id,
+        songId,
+        conversationId
+      });
+      // Notify the initiator that they are pending acceptance
+      socket.emit('music:pending', { songId, conversationId });
+      return;
+    }
+
+    // If active, just play the new song
+    if (state.status === 'active') {
+      playbackStates.set(conversationId, {
+        ...state,
+        songId,
+        playbackPosition: playbackPosition || 0, // Reset to 0 on new song
+        isPlaying: true,
+        serverTimestamp: Date.now(),
+        revision: state.revision + 1,
+        updatedBy: user._id
+      });
+      broadcastState(conversationId);
+    }
+  });
+
+  socket.on('music:accept', async (data) => {
+    const { conversationId } = data;
+    if (!conversationId) return;
+    if (!(await checkMembership(conversationId))) return;
+
+    let state = playbackStates.get(conversationId);
+    if (!state || state.status !== 'pending') return;
+
+    // Transition to active and start playing the pending song
     playbackStates.set(conversationId, {
-      conversationId,
-      songId,
-      playbackPosition: playbackPosition || state.playbackPosition || 0,
+      ...state,
+      status: 'active',
+      songId: state.pendingSongId,
+      pendingSongId: null,
+      initiatorId: null,
+      playbackPosition: 0,
       isPlaying: true,
       serverTimestamp: Date.now(),
       revision: state.revision + 1,
       updatedBy: user._id
     });
-
+    
     broadcastState(conversationId);
+  });
+
+  socket.on('music:reject', async (data) => {
+    const { conversationId } = data;
+    if (!conversationId) return;
+    if (!(await checkMembership(conversationId))) return;
+
+    let state = playbackStates.get(conversationId);
+    if (!state || state.status !== 'pending') return;
+
+    // Reset to inactive
+    playbackStates.set(conversationId, {
+      ...state,
+      status: 'inactive',
+      pendingSongId: null,
+      initiatorId: null
+    });
+    
+    io.to(`conv:${conversationId}`).emit('music:rejected', {
+      userId: user._id,
+      conversationId
+    });
+  });
+
+  socket.on('music:sync_playlist', async (data) => {
+    const { conversationId, action, payload } = data;
+    if (!conversationId) return;
+    if (!(await checkMembership(conversationId))) return;
+    
+    // Broadcast playlist change to partner
+    socket.to(`conv:${conversationId}`).emit('music:playlist_updated', {
+      action,
+      payload,
+      updatedBy: user._id
+    });
   });
 
   socket.on('music:pause', async (data) => {
