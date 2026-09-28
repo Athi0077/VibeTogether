@@ -77,6 +77,8 @@ export function AudioProvider({ children }) {
       if (state.revision <= serverRevisionRef.current && state.revision !== 0) return; // Stale state guard
       serverRevisionRef.current = state.revision;
 
+      if (!state.songId) return; // Defensive check against invalid state
+
       const audio = audioRef.current;
       isRemoteActionRef.current = true;
       setSessionStatus('active');

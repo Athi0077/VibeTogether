@@ -175,7 +175,19 @@ module.exports = (io, socket) => {
     if (typeof callback === 'function') {
       callback({ state });
     } else if (state) {
-      socket.emit('music:state', state);
+      if (state.status === 'active') {
+        socket.emit('music:state', state);
+      } else if (state.status === 'pending') {
+        if (state.initiatorId === user._id) {
+          socket.emit('music:pending', { songId: state.pendingSongId, conversationId });
+        } else {
+          socket.emit('music:request_accept', {
+            initiatorId: state.initiatorId,
+            songId: state.pendingSongId,
+            conversationId
+          });
+        }
+      }
     }
   });
 };
