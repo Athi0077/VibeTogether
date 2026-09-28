@@ -14,6 +14,9 @@ export function SocketProvider({ children }) {
     const backendUrl = (import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000').trim();
     const newSocket = io(backendUrl, {
       withCredentials: true,
+      auth: {
+        token: localStorage.getItem('token')
+      },
       transports: ['websocket']
     });
 

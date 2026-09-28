@@ -45,6 +45,7 @@ const registerUser = async (req, res, next) => {
         name: user.name,
         email: user.email,
         avatar: user.avatar,
+        token,
       });
     } else {
       res.status(400);
@@ -74,6 +75,7 @@ const loginUser = async (req, res, next) => {
         name: user.name,
         email: user.email,
         avatar: user.avatar,
+        token,
       });
     } else {
       res.status(401);

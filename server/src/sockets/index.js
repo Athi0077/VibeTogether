@@ -19,7 +19,11 @@ const initSocketServer = (server) => {
     try {
       const cookieHeader = socket.request.headers.cookie || '';
       const tokenMatch = cookieHeader.match(/jwt=([^;]+)/);
-      const token = tokenMatch ? tokenMatch[1] : null;
+      let token = tokenMatch ? tokenMatch[1] : null;
+
+      if (!token && socket.handshake.auth && socket.handshake.auth.token) {
+        token = socket.handshake.auth.token;
+      }
 
       if (!token) return next(new Error('Authentication error: No token'));
 
