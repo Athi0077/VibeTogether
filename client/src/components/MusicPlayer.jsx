@@ -10,7 +10,7 @@ const formatTime = (time) => {
 };
 
 export default function MusicPlayer() {
-  const { currentSong, isPlaying, isLoading, progress, duration, togglePlay, seek, stopSong } = useAudio();
+  const { currentSong, isPlaying, isLoading, progress, duration, togglePlay, seek, stopSong, pendingInitiator } = useAudio();
   const [isExpanded, setIsExpanded] = useState(false);
   const [isMinimized, setIsMinimized] = useState(false);
   const [position, setPosition] = useState({ x: 0, y: 0 });
@@ -125,7 +125,9 @@ export default function MusicPlayer() {
           
           <div className="text-center mb-6">
             <h3 className="text-2xl font-bold text-white mb-1 truncate">{currentSong.title}</h3>
-            <p className="text-purple-400 text-sm truncate">{currentSong.artist}</p>
+            <p className="text-purple-400 text-sm truncate">
+              {pendingInitiator ? 'Waiting for approval...' : currentSong.artist}
+            </p>
           </div>
           
           <div className="flex flex-col gap-2 mb-6">
@@ -202,7 +204,7 @@ export default function MusicPlayer() {
             <div className="absolute inset-0 rounded-full border-2 border-white/30 border-t-white animate-spin pointer-events-none" />
           )}
           <span className="text-white font-bold text-xl relative z-10">
-            {currentSong.title ? currentSong.title.charAt(0).toUpperCase() : '🎵'}
+            {pendingInitiator ? '⏳' : (currentSong.title ? currentSong.title.charAt(0).toUpperCase() : '🎵')}
           </span>
           <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors" />
         </button>
@@ -243,7 +245,9 @@ export default function MusicPlayer() {
         
         <div className="flex-1 min-w-0 pointer-events-none">
           <h4 className="text-white font-medium text-sm truncate">{currentSong.title}</h4>
-          <p className="text-gray-400 text-xs truncate">{currentSong.artist}</p>
+          <p className="text-gray-400 text-xs truncate">
+            {pendingInitiator ? <span className="text-yellow-400 font-medium">Waiting for approval...</span> : currentSong.artist}
+          </p>
         </div>
         
         <div className="flex items-center gap-1 shrink-0">
