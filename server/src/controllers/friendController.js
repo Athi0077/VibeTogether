@@ -32,7 +32,7 @@ exports.getFriends = async (req, res) => {
     const friendships = await Friendship.find({
       $or: [{ requester: req.user.id }, { recipient: req.user.id }],
       status: 'accepted'
-    }).populate('requester recipient', 'name username avatarUrl isOnline');
+    }).populate('requester recipient', 'name username avatarUrl isOnline currentListeningTo');
 
     const friends = friendships.map(f => f.requester._id.toString() === req.user.id ? f.recipient : f.requester);
     res.json(friends);

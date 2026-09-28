@@ -8,7 +8,9 @@ const userSchema = new mongoose.Schema({
   bio: { type: String, maxLength: 150, default: '' },
   avatarUrl: { type: String, default: '' },
   isOnline: { type: Boolean, default: false },
+  currentListeningTo: { type: String, default: null },
   blockedUsers: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
+  likedSongs: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Song' }],
   privacySettings: {
     profileVisibility: { type: String, enum: ['public', 'friends', 'private'], default: 'public' },
     allowFriendRequests: { type: Boolean, default: true }

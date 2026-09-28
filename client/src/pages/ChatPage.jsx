@@ -68,9 +68,9 @@ export default function ChatPage() {
   useEffect(() => {
     if (!socket) return;
     
-    const handlePresence = ({ userId, isOnline }) => {
-      setFriends(prev => prev.map(f => f._id === userId ? { ...f, isOnline } : f));
-      setSelectedFriend(prev => (prev && prev._id === userId) ? { ...prev, isOnline } : prev);
+    const handlePresence = ({ userId, isOnline, currentListeningTo }) => {
+      setFriends(prev => prev.map(f => f._id === userId ? { ...f, isOnline, currentListeningTo } : f));
+      setSelectedFriend(prev => (prev && prev._id === userId) ? { ...prev, isOnline, currentListeningTo } : prev);
     };
 
     socket.on('user:presence', handlePresence);

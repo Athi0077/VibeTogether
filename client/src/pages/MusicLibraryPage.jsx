@@ -1,5 +1,9 @@
+import { useState, useEffect } from 'react';
 import { Search, Music, Play, Pause, Library } from 'lucide-react';
 import { useAudio } from '../context/AudioContext';
+import { useNavigate } from 'react-router-dom';
+import { motion } from 'framer-motion';
+import api from '../services/api';
 
 const formatTime = (time) => {
   if (isNaN(time)) return '0:00';
@@ -9,7 +13,28 @@ const formatTime = (time) => {
 };
 
 export default function MusicLibraryPage() {
-  const { library, currentSong, isPlaying, playSong, togglePlay } = useAudio();
+  const { library, setLibraryData, currentSong, isPlaying, playSong, togglePlay } = useAudio();
+  const [isLoading, setIsLoading] = useState(true);
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    const fetchLibrary = async () => {
+      try {
+        setIsLoading(true);
+        const { data } = await api.get('/songs/library');
+        setLibraryData(data);
+      } catch (err) {
+        console.error("Failed to fetch library", err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    if (library.length === 0) {
+      fetchLibrary();
+    } else {
+      setIsLoading(false);
+    }
+  }, [library.length, setLibraryData]);
 
   return (
     <div className="p-4 md:p-8 flex flex-col h-full absolute inset-0">
@@ -31,13 +56,31 @@ export default function MusicLibraryPage() {
       </div>
 
       <div className="flex-1 overflow-y-auto space-y-2 pb-6">
-        {library.length > 0 ? (
+        {isLoading ? (
+          Array(5).fill(0).map((_, i) => (
+            <div key={`skel-${i}`} className="flex items-center justify-between p-3 rounded-2xl border border-transparent animate-pulse bg-white/5">
+              <div className="flex items-center gap-4 min-w-0 flex-1">
+                <div className="w-12 h-12 rounded-xl bg-gray-700/50 shrink-0"></div>
+                <div className="flex-1 min-w-0">
+                  <div className="h-4 bg-gray-700/50 rounded w-1/3 mb-2"></div>
+                  <div className="h-3 bg-gray-700/50 rounded w-1/4"></div>
+                </div>
+              </div>
+              <div className="flex items-center gap-4 shrink-0">
+                <div className="h-3 bg-gray-700/50 rounded w-12 hidden md:block"></div>
+                <div className="h-3 bg-gray-700/50 rounded w-8 text-right"></div>
+              </div>
+            </div>
+          ))
+        ) : library.length > 0 ? (
           library.map((song) => {
             const isThisPlaying = currentSong?._id === song._id;
             return (
-              <div 
+              <motion.div 
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
                 key={song._id} 
-                className={`flex items-center justify-between p-3 rounded-2xl transition group ${isThisPlaying ? 'bg-purple-500/10 border border-purple-500/30' : 'hover:bg-white/5 border border-transparent'}`}
+                className={`flex items-center justify-between p-3 rounded-2xl transition group ${isThisPlaying ? 'bg-purple-500/10 border border-purple-500/30' : 'hover:bg-white/5 border border-transparent hover:scale-[1.01]'}`}
               >
                 <div className="flex items-center gap-4 min-w-0">
                   <div 
@@ -70,19 +113,26 @@ export default function MusicLibraryPage() {
                   </span>
                   <span className="text-sm text-gray-500 w-12 text-right">{formatTime(song.duration)}</span>
                 </div>
-              </div>
+              </motion.div>
             );
           })
         ) : (
-          <div className="flex flex-col items-center justify-center h-full text-center p-6 bg-glass-card rounded-2xl border border-dashed border-white/10">
-            <div className="w-16 h-16 rounded-full bg-white/5 flex items-center justify-center text-gray-500 mb-4">
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.95 }} 
+            animate={{ opacity: 1, scale: 1 }} 
+            className="flex flex-col items-center justify-center h-full text-center p-6 bg-glass-card rounded-2xl border border-dashed border-white/10"
+          >
+            <div className="w-16 h-16 rounded-full bg-purple-500/20 flex items-center justify-center text-purple-400 mb-4">
               <Music size={32} />
             </div>
-            <h3 className="text-lg font-medium text-white mb-2">No Songs Yet</h3>
-            <p className="text-gray-400 text-sm max-w-sm">
-              Songs you add to chats will appear here. Go to a chat and add some local music files!
+            <h3 className="text-xl font-bold text-white mb-2">Your library is empty</h3>
+            <p className="text-gray-400 text-sm max-w-sm mb-6">
+              Start building your collection by uploading songs to your chats or exploring trending tracks.
             </p>
-          </div>
+            <button onClick={() => navigate('/')} className="px-6 py-2.5 rounded-full bg-purple-600 hover:bg-purple-500 text-white font-medium transition-all hover:scale-105 shadow-lg shadow-purple-500/20">
+              Explore Trending
+            </button>
+          </motion.div>
         )}
       </div>
     </div>

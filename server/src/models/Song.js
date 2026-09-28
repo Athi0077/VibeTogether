@@ -10,7 +10,8 @@ const songSchema = new mongoose.Schema({
   publicId: { type: String, required: true, unique: true },
   secureUrl: { type: String, required: true },
   uploadedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
-  conversationId: { type: mongoose.Schema.Types.ObjectId, ref: 'Conversation', required: true },
+  conversationId: { type: mongoose.Schema.Types.ObjectId, ref: 'Conversation' },
+  likesCount: { type: Number, default: 0 },
 }, { timestamps: true });
 
 module.exports = mongoose.model('Song', songSchema);

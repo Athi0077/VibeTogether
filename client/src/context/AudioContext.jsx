@@ -195,6 +195,16 @@ export function AudioProvider({ children }) {
     };
   }, [socket, currentSong, library, activeConversationId]);
 
+  useEffect(() => {
+    if (socket) {
+      if (currentSong) {
+        socket.emit('user:listening', { songTitle: `${currentSong.title} - ${currentSong.artist}` });
+      } else {
+        socket.emit('user:listening', { songTitle: null });
+      }
+    }
+  }, [currentSong, socket]);
+
   const playSong = async (song) => {
     const audio = audioRef.current;
     

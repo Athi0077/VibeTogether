@@ -225,7 +225,18 @@ export default function FriendsPage() {
               </div>
             ))}
             {friends.length === 0 && (
-              <div className="col-span-full text-center text-gray-500 py-8">No friends yet. Start searching!</div>
+              <div className="col-span-full flex flex-col items-center justify-center py-12 px-4 bg-glass-card rounded-2xl border border-dashed border-white/10 text-center">
+                <div className="w-16 h-16 rounded-full bg-purple-500/20 flex items-center justify-center text-purple-400 mb-4">
+                  <UserPlus size={32} />
+                </div>
+                <h3 className="text-xl font-bold text-white mb-2">No friends yet</h3>
+                <p className="text-gray-400 text-sm mb-6 max-w-sm">
+                  Connect with others to share music and start listening parties together!
+                </p>
+                <button onClick={() => setActiveTab('search')} className="px-6 py-2.5 rounded-full bg-purple-600 hover:bg-purple-500 text-white font-medium transition-all hover:scale-105 shadow-lg shadow-purple-500/20">
+                  Find Friends
+                </button>
+              </div>
             )}
           </div>
         )}
@@ -260,7 +271,15 @@ export default function FriendsPage() {
               </div>
             ))}
             {pending.length === 0 && (
-              <div className="text-center text-gray-500 py-8">No pending requests.</div>
+              <div className="flex flex-col items-center justify-center py-12 px-4 bg-glass-card rounded-2xl border border-dashed border-white/10 text-center">
+                <div className="w-16 h-16 rounded-full bg-blue-500/20 flex items-center justify-center text-blue-400 mb-4">
+                  <Check size={32} />
+                </div>
+                <h3 className="text-xl font-bold text-white mb-2">You're all caught up!</h3>
+                <p className="text-gray-400 text-sm max-w-sm">
+                  You don't have any pending friend requests at the moment.
+                </p>
+              </div>
             )}
           </div>
         )}

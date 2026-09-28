@@ -58,13 +58,18 @@ const initSocketServer = (server) => {
     registerMusicHandlers(io, socket);
     registerCallHandlers(io, socket);
 
+    socket.on('user:listening', async ({ songTitle }) => {
+      await User.findByIdAndUpdate(userId, { currentListeningTo: songTitle });
+      io.emit('user:presence', { userId, isOnline: true, currentListeningTo: songTitle });
+    });
+
     socket.on('disconnect', async () => {
       console.log(`User disconnected: ${socket.user.name} (${socket.id})`);
       const currentCount = userSockets.get(userId) || 1;
       if (currentCount <= 1) {
         userSockets.delete(userId);
-        await User.findByIdAndUpdate(userId, { isOnline: false });
-        io.emit('user:presence', { userId, isOnline: false });
+        await User.findByIdAndUpdate(userId, { isOnline: false, currentListeningTo: null });
+        io.emit('user:presence', { userId, isOnline: false, currentListeningTo: null });
       } else {
         userSockets.set(userId, currentCount - 1);
       }

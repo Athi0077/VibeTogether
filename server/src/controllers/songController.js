@@ -1,6 +1,7 @@
 const cloudinary = require('../config/cloudinary');
 const Song = require('../models/Song');
 const Conversation = require('../models/Conversation');
+const User = require('../models/User');
 const crypto = require('crypto');
 const fs = require('fs');
 
@@ -91,10 +92,12 @@ const getPlayback = async (req, res, next) => {
       throw new Error('Song not found');
     }
 
-    const isMember = await checkMembership(song.conversationId, req.user._id);
-    if (!isMember) {
-      res.status(403);
-      throw new Error('Not authorized to play this song');
+    if (song.conversationId) {
+      const isMember = await checkMembership(song.conversationId, req.user._id);
+      if (!isMember) {
+        res.status(403);
+        throw new Error('Not authorized to play this song');
+      }
     }
 
     // Cloudinary URLs are already public and secure
@@ -222,6 +225,71 @@ const getMyLibrary = async (req, res, next) => {
   }
 };
 
+const toggleLikeSong = async (req, res, next) => {
+  try {
+    const { songId } = req.params;
+    const user = req.user;
+    
+    const song = await Song.findById(songId);
+    if (!song) {
+      res.status(404);
+      throw new Error('Song not found');
+    }
+
+    const isLiked = user.likedSongs.includes(songId);
+
+    if (isLiked) {
+      user.likedSongs = user.likedSongs.filter(id => id.toString() !== songId.toString());
+      song.likesCount = Math.max(0, song.likesCount - 1);
+    } else {
+      user.likedSongs.push(songId);
+      song.likesCount += 1;
+    }
+
+    await user.save();
+    await song.save();
+
+    res.json({ isLiked: !isLiked, likesCount: song.likesCount });
+  } catch (error) {
+    next(error);
+  }
+};
+
+const getTrendingSongs = async (req, res, next) => {
+  try {
+    const trending = await Song.find()
+      .sort({ likesCount: -1, createdAt: -1 })
+      .limit(10)
+      .populate('uploadedBy', 'name avatar');
+    
+    // Deduplicate by title to ensure a diverse trending list
+    const uniqueSongs = [];
+    const seenTitles = new Set();
+    for (const song of trending) {
+      if (!seenTitles.has(song.title.toLowerCase())) {
+        seenTitles.add(song.title.toLowerCase());
+        uniqueSongs.push(song);
+      }
+    }
+
+    res.json(uniqueSongs);
+  } catch (error) {
+    next(error);
+  }
+};
+
+const getLikedSongs = async (req, res, next) => {
+  try {
+    const user = await User.findById(req.user._id).populate({
+      path: 'likedSongs',
+      populate: { path: 'uploadedBy', select: 'name avatar' }
+    });
+    res.json(user.likedSongs);
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   uploadSong,
   getSongsByConversation,
@@ -229,4 +297,7 @@ module.exports = {
   deleteSong,
   convertOnly,
   getMyLibrary,
+  toggleLikeSong,
+  getTrendingSongs,
+  getLikedSongs,
 };
