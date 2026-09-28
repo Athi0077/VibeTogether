@@ -9,7 +9,7 @@ export default function AppLayout() {
   const { currentSong } = useAudio();
   
   return (
-    <div className="flex h-screen bg-[#050308] overflow-hidden text-white">
+    <div className="flex h-[100dvh] bg-[#050308] overflow-hidden text-white">
       {/* Desktop Sidebar */}
       <Sidebar />
 
