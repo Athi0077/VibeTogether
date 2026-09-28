@@ -132,6 +132,16 @@ export default function ChatPage() {
     }
   }, [activeConversation, setActiveConversationId]);
 
+  useEffect(() => {
+    // Hide bottom navigation on mobile when a chat is open
+    const event = new CustomEvent('toggle-bottom-nav', { detail: { hidden: !!selectedFriend } });
+    window.dispatchEvent(event);
+    
+    return () => {
+      window.dispatchEvent(new CustomEvent('toggle-bottom-nav', { detail: { hidden: false } }));
+    };
+  }, [selectedFriend]);
+
   const handleTyping = (e) => {
     setInputText(e.target.value);
     if (!socket || !activeConversation) return;
