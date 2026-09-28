@@ -154,16 +154,35 @@ export function AudioProvider({ children }) {
       alert('Your partner rejected the music request.');
     };
 
+    const handleMusicStopped = () => {
+      isRemoteActionRef.current = true;
+      const audio = audioRef.current;
+      if (audio) {
+        audio.pause();
+        audio.currentTime = 0;
+        audio.src = '';
+      }
+      setIsPlaying(false);
+      setCurrentSong(null);
+      setProgress(0);
+      setSessionStatus('inactive');
+      setPendingInitiator(false);
+      setIncomingRequest(null);
+      isRemoteActionRef.current = false;
+    };
+
     socket.on('music:state', handleMusicState);
     socket.on('music:pending', handleMusicPending);
     socket.on('music:request_accept', handleMusicRequestAccept);
     socket.on('music:rejected', handleMusicRejected);
+    socket.on('music:stopped', handleMusicStopped);
 
     return () => {
       socket.off('music:state', handleMusicState);
       socket.off('music:pending', handleMusicPending);
       socket.off('music:request_accept', handleMusicRequestAccept);
       socket.off('music:rejected', handleMusicRejected);
+      socket.off('music:stopped', handleMusicStopped);
     };
   }, [socket, currentSong, library, activeConversationId]);
 
@@ -270,11 +289,11 @@ export function AudioProvider({ children }) {
     setIsPlaying(false);
     setCurrentSong(null);
     setProgress(0);
+    setSessionStatus('inactive');
     
     if (socket && !isRemoteActionRef.current && activeConversationId) {
-      socket.emit('music:pause', {
-        conversationId: activeConversationId,
-        playbackPosition: 0
+      socket.emit('music:stop', {
+        conversationId: activeConversationId
       });
     }
   };

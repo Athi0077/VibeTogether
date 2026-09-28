@@ -145,6 +145,26 @@ module.exports = (io, socket) => {
     broadcastState(conversationId);
   });
 
+  socket.on('music:stop', async (data) => {
+    const { conversationId } = data;
+    if (!conversationId) return;
+    if (!(await checkMembership(conversationId))) return;
+
+    playbackStates.set(conversationId, {
+      status: 'inactive',
+      songId: null,
+      pendingSongId: null,
+      initiatorId: null,
+      isPlaying: false,
+      playbackPosition: 0,
+      revision: 0,
+      serverTimestamp: Date.now(),
+      updatedBy: user._id
+    });
+
+    io.to(`conv:${conversationId}`).emit('music:stopped', { conversationId });
+  });
+
   socket.on('music:seek', async (data) => {
     const { conversationId, playbackPosition } = data;
     if (!conversationId) return;
