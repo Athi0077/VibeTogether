@@ -86,21 +86,27 @@ export function AudioProvider({ children }) {
       try {
         // If it's a new song, load it
         if (!currentSong || currentSong._id !== state.songId) {
-          const songObj = library.find(s => s._id === state.songId);
-          if (songObj) {
-            setCurrentSong(songObj);
-            setIsLoading(true);
-            const { data } = await api.get(`/songs/${songObj._id}/playback-url`);
-            audio.src = data.playbackUrl;
-            
-            // Wait for audio to be ready enough to seek
-            await new Promise(resolve => {
-              const onCanPlay = () => {
-                audio.removeEventListener('canplay', onCanPlay);
-                resolve();
-              };
-              audio.addEventListener('canplay', onCanPlay);
-            });
+          let songObj = library.find(s => s._id === state.songId);
+          setIsLoading(true);
+          
+          try {
+            const { data } = await api.get(`/songs/${state.songId}/playback-url`);
+            songObj = songObj || data.song; // Use returned song data if not in library
+            if (songObj) {
+              setCurrentSong(songObj);
+              audio.src = data.playbackUrl;
+              
+              await new Promise(resolve => {
+                const onCanPlay = () => {
+                  audio.removeEventListener('canplay', onCanPlay);
+                  resolve();
+                };
+                audio.addEventListener('canplay', onCanPlay);
+              });
+            }
+          } catch (e) {
+            console.error("Failed to load song", e);
+            setIsLoading(false);
           }
         }
 

@@ -98,7 +98,7 @@ const getPlayback = async (req, res, next) => {
     }
 
     // Cloudinary URLs are already public and secure
-    res.json({ playbackUrl: song.secureUrl });
+    res.json({ playbackUrl: song.secureUrl, song });
   } catch (error) {
     next(error);
   }
