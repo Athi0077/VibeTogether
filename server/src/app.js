@@ -17,6 +17,8 @@ const playlistRoutes = require('./routes/playlistRoutes');
 
 const app = express();
 
+app.set('trust proxy', 1); // Trust first proxy for Render
+
 // Middleware
 app.use(helmet());
 app.use(cors({
@@ -28,14 +30,14 @@ app.use(cookieParser());
 
 const apiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 100,
+  max: 1000, // increased from 100
   message: 'Too many requests, please try again later.',
   skip: (req) => req.originalUrl.startsWith('/api/users/search')
 });
 
 const authLimiter = rateLimit({
   windowMs: 60 * 60 * 1000,
-  max: 20,
+  max: 100, // increased from 20
   message: 'Too many login attempts, please try again later.'
 });
 
