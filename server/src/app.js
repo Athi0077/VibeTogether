@@ -19,10 +19,8 @@ const app = express();
 
 // Middleware
 app.use(helmet());
-const allowedOrigins = process.env.CLIENT_URL ? process.env.CLIENT_URL.split(',').map(url => url.trim()) : ['http://localhost:5173'];
-
 app.use(cors({
-  origin: allowedOrigins,
+  origin: true, // Allow any origin to connect
   credentials: true
 }));
 app.use(express.json());

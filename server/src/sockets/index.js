@@ -8,11 +8,9 @@ const registerCallHandlers = require('./callHandler');
 const userSockets = new Map();
 
 const initSocketServer = (server) => {
-  const allowedOrigins = process.env.CLIENT_URL ? process.env.CLIENT_URL.split(',').map(url => url.trim()) : ['http://localhost:5173'];
-
   io = new Server(server, {
     cors: {
-      origin: allowedOrigins,
+      origin: true, // Allow any origin
       credentials: true
     }
   });
