@@ -178,8 +178,15 @@ export function AudioProvider({ children }) {
       setPendingInitiator(true);
     };
 
-    const handleMusicRequestAccept = (data) => {
+    const handleMusicRequestAccept = async (data) => {
       setSessionStatus('pending');
+      try {
+        const res = await api.get(`/songs/${data.songId}/playback-url`);
+        data.playbackUrl = res.data.playbackUrl;
+        data.song = res.data.song;
+      } catch (err) {
+        console.error("Failed to prefetch URL", err);
+      }
       setIncomingRequest(data);
     };
 
@@ -236,31 +243,46 @@ export function AudioProvider({ children }) {
   const playSong = async (song) => {
     const audio = audioRef.current;
     
-    // Unlock audio for mobile browsers
-    audio.play().catch(() => {}).finally(() => audio.pause());
+    let playUrl = song.url;
+    let songObj = song;
+    if (!playUrl && song._id) {
+       setIsLoading(true);
+       try {
+         const { data } = await api.get(`/songs/${song._id}/playback-url`);
+         playUrl = data.playbackUrl;
+         songObj = data.song || song;
+       } catch (e) {
+         console.error(e);
+         setIsLoading(false);
+         return;
+       }
+    }
+    
+    if (playUrl) {
+      audio.src = playUrl;
+      audio.load();
+      setCurrentSong(songObj);
+    }
+    
+    // Unlock audio for mobile browsers with valid src
+    const p = audio.play();
+    if (p !== undefined) p.catch(() => {}).finally(() => audio.pause());
 
     if (activeConversationId && socket) {
-       // Do not set current song or loading until accepted
        socket.emit('music:play', {
          conversationId: activeConversationId,
-         songId: song._id,
+         songId: songObj._id,
          playbackPosition: 0
        });
        return;
     }
 
     // Solo Playback (No active conversation)
-    setCurrentSong(song);
     setIsLoading(true);
     
     try {
-      let playUrl = song.url;
-      if (!playUrl && song._id) {
-        const { data } = await api.get(`/songs/${song._id}/playback-url`);
-        playUrl = data.playbackUrl;
-      }
-      
       if (!playUrl) throw new Error('No playback URL available');
+
 
       audio.src = playUrl;
       await audio.play();
@@ -348,10 +370,20 @@ export function AudioProvider({ children }) {
     if (socket && incomingRequest) {
       const audio = audioRef.current;
       if (audio) {
-        // Unlock audio for mobile/browsers during user interaction
-        audio.play().catch(() => {}).finally(() => {
-          if (!isPlaying) audio.pause();
-        });
+        if (incomingRequest.playbackUrl) {
+          audio.src = incomingRequest.playbackUrl;
+          audio.load();
+          const songObj = library.find(s => s._id === incomingRequest.songId) || incomingRequest.song;
+          if (songObj) setCurrentSong(songObj);
+        }
+        
+        // Unlock audio for mobile/browsers during user interaction with actual src
+        const p = audio.play();
+        if (p !== undefined) {
+          p.catch(() => {}).finally(() => {
+            if (!isPlaying) audio.pause();
+          });
+        }
       }
 
       socket.emit('music:accept', { 
