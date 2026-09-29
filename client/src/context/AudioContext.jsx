@@ -130,6 +130,9 @@ export function AudioProvider({ children }) {
 
         let expectedPosition = state.playbackPosition;
         
+        // Use an active check to ensure this async function hasn't been superseded
+        if (state.revision < serverRevisionRef.current) return;
+
         // Wait for startAt if it's in the future
         if (state.isPlaying && state.startAt) {
           const delay = state.startAt - Date.now();
@@ -137,6 +140,9 @@ export function AudioProvider({ children }) {
             await new Promise(res => setTimeout(res, delay));
           }
         }
+
+        // Check again after awaiting timeout
+        if (state.revision < serverRevisionRef.current) return;
 
         if (state.isPlaying) {
            const drift = (Date.now() - state.serverTimestamp) / 1000;
@@ -190,7 +196,7 @@ export function AudioProvider({ children }) {
       if (audio) {
         audio.pause();
         audio.currentTime = 0;
-        audio.src = '';
+        audio.removeAttribute('src'); // Better than setting to empty string for clean state
       }
       setIsPlaying(false);
       setCurrentSong(null);
@@ -198,6 +204,7 @@ export function AudioProvider({ children }) {
       setSessionStatus('idle');
       setPendingInitiator(false);
       setIncomingRequest(null);
+      serverRevisionRef.current = 0; // Reset revision so new sessions work
       isRemoteActionRef.current = false;
     };
 
@@ -322,12 +329,13 @@ export function AudioProvider({ children }) {
     if (audio) {
       audio.pause();
       audio.currentTime = 0;
-      audio.src = '';
+      audio.removeAttribute('src');
     }
     setIsPlaying(false);
     setCurrentSong(null);
     setProgress(0);
     setSessionStatus('inactive');
+    serverRevisionRef.current = 0; // Reset revision locally
     
     if (socket && !isRemoteActionRef.current && activeConversationId) {
       socket.emit('music:stop', {
