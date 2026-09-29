@@ -1,5 +1,5 @@
 import React from 'react';
-import { Play, Pause, X, Check, Youtube } from 'lucide-react';
+import { Play, Pause, X, Check, MonitorPlay } from 'lucide-react';
 
 export default function YouTubeMiniPlayer({ 
   currentVideo, isPlaying, sessionStatus, incomingRequest, 
@@ -12,7 +12,7 @@ export default function YouTubeMiniPlayer({
     return (
       <div className="fixed bottom-24 right-4 md:right-8 bg-[#120f18] border border-red-500/20 p-4 rounded-2xl shadow-2xl shadow-red-900/20 max-w-sm w-full z-50 flex items-center justify-between gap-4">
         <div className="flex items-center gap-3">
-          <Youtube className="text-red-500" size={24} />
+          <MonitorPlay className="text-red-500" size={24} />
           <div>
             <p className="text-white text-sm font-medium">YouTube Request</p>
             <p className="text-gray-400 text-xs">Partner wants to watch a video</p>
@@ -33,7 +33,7 @@ export default function YouTubeMiniPlayer({
   if (sessionStatus === 'pending') {
     return (
       <div className="fixed bottom-24 right-4 md:right-8 bg-[#120f18] border border-gray-700 p-4 rounded-2xl shadow-2xl z-50 flex items-center gap-3">
-        <Youtube className="text-gray-400" size={24} />
+        <MonitorPlay className="text-gray-400" size={24} />
         <p className="text-gray-300 text-sm">Waiting for partner to accept...</p>
       </div>
     );
@@ -45,7 +45,7 @@ export default function YouTubeMiniPlayer({
     <div className="fixed bottom-4 left-1/2 -translate-x-1/2 w-[95%] max-w-[400px] bg-[#1a1721] border border-red-500/20 rounded-2xl p-3 shadow-2xl z-50 flex items-center justify-between">
       <div className="flex items-center gap-3 flex-1 min-w-0">
         <div className="w-10 h-10 rounded-full bg-red-600/20 flex items-center justify-center flex-shrink-0">
-          <Youtube className="text-red-500" size={20} />
+          <MonitorPlay className="text-red-500" size={20} />
         </div>
         <div className="flex-1 min-w-0">
           <p className="text-white text-sm font-medium truncate">Watching YouTube</p>

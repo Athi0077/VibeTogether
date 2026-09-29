@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Youtube, X, Loader } from 'lucide-react';
+import { MonitorPlay, X, Loader } from 'lucide-react';
 import api from '../../../services/api';
 
 export default function YouTubeUrlModal({ isOpen, onClose, onAdd }) {
@@ -36,7 +36,7 @@ export default function YouTubeUrlModal({ isOpen, onClose, onAdd }) {
         
         <div className="flex items-center gap-3 mb-6">
           <div className="w-10 h-10 rounded-full bg-red-600/20 flex items-center justify-center">
-            <Youtube className="text-red-500" size={24} />
+            <MonitorPlay className="text-red-500" size={24} />
           </div>
           <h2 className="text-xl font-bold text-white">Add YouTube Video</h2>
         </div>
