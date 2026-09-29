@@ -2,6 +2,7 @@ const cloudinary = require('../config/cloudinary');
 const Song = require('../models/Song');
 const Conversation = require('../models/Conversation');
 const User = require('../models/User');
+const Friendship = require('../models/Friendship');
 const crypto = require('crypto');
 const fs = require('fs');
 const ListeningHistory = require('../models/ListeningHistory');
@@ -104,6 +105,21 @@ const getPlayback = async (req, res, next) => {
         res.status(403);
         throw new Error('Not authorized to play this song');
       }
+    } else if (song.visibility === 'friends' && song.uploadedBy.toString() !== req.user._id.toString()) {
+      const isFriend = await Friendship.findOne({
+        $or: [
+          { requester: req.user._id, recipient: song.uploadedBy },
+          { requester: song.uploadedBy, recipient: req.user._id }
+        ],
+        status: 'accepted'
+      });
+      if (!isFriend) {
+        res.status(403);
+        throw new Error('Not authorized to play this song');
+      }
+    } else if (song.visibility === 'private' && song.uploadedBy.toString() !== req.user._id.toString()) {
+       res.status(403);
+       throw new Error('Not authorized to play this song');
     }
 
     // Instead of returning the direct Cloudinary URL which could be shared,
@@ -132,6 +148,18 @@ const streamSong = async (req, res, next) => {
     if (song.conversationId) {
       const isMember = await checkMembership(song.conversationId, req.user._id);
       if (!isMember) {
+        res.status(403);
+        throw new Error('Not authorized to play this song');
+      }
+    } else if (song.visibility === 'friends' && song.uploadedBy.toString() !== req.user._id.toString()) {
+      const isFriend = await Friendship.findOne({
+        $or: [
+          { requester: req.user._id, recipient: song.uploadedBy },
+          { requester: song.uploadedBy, recipient: req.user._id }
+        ],
+        status: 'accepted'
+      });
+      if (!isFriend) {
         res.status(403);
         throw new Error('Not authorized to play this song');
       }

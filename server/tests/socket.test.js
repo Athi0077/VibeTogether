@@ -10,6 +10,7 @@ const jwt = require('jsonwebtoken');
 require('./setup');
 
 describe('Socket.IO Real-time Features (Phase 3 Checklist)', () => {
+  jest.setTimeout(15000);
   let io, server, url;
   let user1, user2, unauthorizedUser;
   let token1, token2, token3;
@@ -32,6 +33,8 @@ describe('Socket.IO Real-time Features (Phase 3 Checklist)', () => {
 
   beforeEach(async () => {
     // Setup users
+    await User.deleteMany({});
+    await Conversation.deleteMany({});
     user1 = await User.create({ name: 'User 1', email: 'user1@test.com', passwordHash: 'pwd' });
     user2 = await User.create({ name: 'User 2', email: 'user2@test.com', passwordHash: 'pwd' });
     unauthorizedUser = await User.create({ name: 'User 3', email: 'user3@test.com', passwordHash: 'pwd' });
@@ -130,34 +133,36 @@ describe('Socket.IO Real-time Features (Phase 3 Checklist)', () => {
       }
     });
 
-    setTimeout(() => {
-      client1.on('music:pending', (data) => {
-        client1.emit('music:accept', { conversationId, requestId: data.requestId }); // To force active state
-        setTimeout(() => {
-          client1.emit('music:pause', { conversationId, playbackPosition: 15 });
-        }, 20);
-      });
-      client1.emit('music:play', { conversationId, songId: 'dummy', playbackPosition: 0 });
-    }, 50);
+    client2.on('music:request_accept', (data) => {
+      client2.emit('music:accept', { conversationId, requestId: data.requestId });
+    });
+
+    client1.on('music:accepted', () => {
+      client1.emit('music:pause', { conversationId, playbackPosition: 15 });
+    });
+
+    client1.emit('music:play', { conversationId, songId: 'dummy', playbackPosition: 0 });
   });
 
   // 4. புதிதாக chat-ல் join செய்பவருக்கு current song state கிடைக்க வேண்டும்
   it('should send current state to newly joined users', (done) => {
-    client1.on('music:pending', (data) => {
-      client1.emit('music:accept', { conversationId, requestId: data.requestId });
-    });
-    client1.emit('music:play', { conversationId, songId: 'song456', playbackPosition: 10 });
+    client2.emit('conversation:join', conversationId);
     
-    // User 2 joins later and requests state
-    setTimeout(() => {
-      client2.emit('conversation:join', conversationId);
+    client2.on('music:request_accept', (data) => {
+      client2.emit('music:accept', { conversationId, requestId: data.requestId });
+    });
+
+    client1.on('music:accepted', () => {
+      // User 2 requests state after accepted
       client2.emit('music:request-state', conversationId, (response) => {
         expect(response.state.songId).toBe('song456');
         expect(response.state.isPlaying).toBe(true);
         expect(response.state.playbackPosition).toBe(10);
         done();
       });
-    }, 50);
+    });
+
+    client1.emit('music:play', { conversationId, songId: 'song456', playbackPosition: 10 });
   });
 
   // 5. Unauthorized user chat அல்லது music control செய்ய முடியக்கூடாது

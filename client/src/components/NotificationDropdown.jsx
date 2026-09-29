@@ -11,6 +11,25 @@ export default function NotificationDropdown() {
   const navigate = useNavigate();
   const dropdownRef = useRef(null);
 
+  const fetchNotifications = async () => {
+    try {
+      const { data } = await api.get('/notifications');
+      setNotifications(data);
+    } catch (e) {
+      console.error('Error fetching notifications', e);
+    }
+  };
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
   useEffect(() => {
     fetchNotifications();
 
@@ -24,25 +43,6 @@ export default function NotificationDropdown() {
       if (socket) socket.off('notification:new');
     };
   }, [socket]);
-
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
-        setIsOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
-
-  const fetchNotifications = async () => {
-    try {
-      const { data } = await api.get('/notifications');
-      setNotifications(data);
-    } catch (e) {
-      console.error('Error fetching notifications');
-    }
-  };
 
   const markAsRead = async (id) => {
     try {

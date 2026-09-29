@@ -149,13 +149,15 @@ export function CallProvider({ children }) {
   };
 
   const initPeerConnection = async (conversationId, isInitiator) => {
-    const iceServers = [{ urls: 'stun:stun.l.google.com:19302' }];
-    if (import.meta.env.VITE_TURN_URL) {
-      iceServers.push({
-        urls: import.meta.env.VITE_TURN_URL,
-        username: import.meta.env.VITE_TURN_USERNAME,
-        credential: import.meta.env.VITE_TURN_PASSWORD
-      });
+    let iceServers = [{ urls: 'stun:stun.l.google.com:19302' }];
+    
+    try {
+      const { data } = await api.get('/calls/turn');
+      if (data.iceServers) {
+        iceServers = data.iceServers;
+      }
+    } catch (e) {
+      console.error('Failed to fetch TURN credentials', e);
     }
 
     const pc = new RTCPeerConnection({ iceServers });

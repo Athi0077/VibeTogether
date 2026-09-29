@@ -31,46 +31,52 @@ module.exports = (io, socket) => {
   });
 
   socket.on('call:accept', async (data) => {
-    const { conversationId } = data;
-    if (!(await checkMembership(conversationId))) return;
-    socket.to(`conv:${conversationId}`).emit('call:accepted', {
-      conversationId,
-      participantId: user._id
-    });
+    try {
+      const { conversationId } = data;
+      if (!(await checkMembership(conversationId))) return;
+      socket.to(`conv:${conversationId}`).emit('call:accepted', {
+        conversationId,
+        participantId: user._id
+      });
+    } catch (e) { console.error('call:accept error', e); }
   });
 
   socket.on('call:decline', async (data) => {
-    const { conversationId } = data;
-    if (!(await checkMembership(conversationId))) return;
-    socket.to(`conv:${conversationId}`).emit('call:declined', {
-      conversationId,
-      participantId: user._id
-    });
-    
-    // Log as declined
-    await Call.create({
-      conversationId,
-      callType: 'audio', // default
-      initiatedBy: user._id, // the one who originated the decline? No, initiator is lost in this simple event. Real app would pass callId.
-      status: 'declined'
-    });
+    try {
+      const { conversationId } = data;
+      if (!(await checkMembership(conversationId))) return;
+      socket.to(`conv:${conversationId}`).emit('call:declined', {
+        conversationId,
+        participantId: user._id
+      });
+      
+      // Log as declined
+      await Call.create({
+        conversationId,
+        callType: 'audio', // default
+        initiatedBy: user._id, 
+        status: 'declined'
+      });
+    } catch (e) { console.error('call:decline error', e); }
   });
 
   socket.on('call:end', async (data) => {
-    const { conversationId, duration, callType, initiatorId } = data;
-    if (!(await checkMembership(conversationId))) return;
-    
-    socket.to(`conv:${conversationId}`).emit('call:ended', { conversationId });
+    try {
+      const { conversationId, duration, callType, initiatorId } = data;
+      if (!(await checkMembership(conversationId))) return;
+      
+      socket.to(`conv:${conversationId}`).emit('call:ended', { conversationId });
 
-    if (initiatorId === user._id.toString()) {
-      await Call.create({
-        conversationId,
-        callType: callType || 'audio',
-        initiatedBy: user._id,
-        duration: duration || 0,
-        status: 'completed'
-      });
-    }
+      if (initiatorId === user._id.toString()) {
+        await Call.create({
+          conversationId,
+          callType: callType || 'audio',
+          initiatedBy: user._id,
+          duration: duration || 0,
+          status: 'completed'
+        });
+      }
+    } catch (e) { console.error('call:end error', e); }
   });
 
   // WebRTC Native Signaling (For 1-to-1)

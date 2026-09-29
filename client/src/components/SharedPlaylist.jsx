@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { X, Play, Pause, Plus, Trash2, GripVertical, SkipBack, SkipForward, Clock, HardDrive, User as UserIcon } from 'lucide-react';
+import { X, Play, Pause, Plus, Trash2, GripVertical, SkipBack, SkipForward, Clock, HardDrive, User as UserIcon, Music } from 'lucide-react';
 import { useSocket } from '../context/SocketContext';
 import { useAudio } from '../context/AudioContext';
 import api from '../services/api';
