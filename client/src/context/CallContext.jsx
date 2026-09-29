@@ -22,6 +22,7 @@ export function CallProvider({ children }) {
   const [remoteMediaStream, setRemoteMediaStream] = useState(null);
   const [isMuted, setIsMuted] = useState(false);
   const [isVideoOff, setIsVideoOff] = useState(false);
+  const iceCandidateQueue = useRef([]);
 
   // Group Call specific (LiveKit)
   const [liveKitToken, setLiveKitToken] = useState(null);
@@ -44,6 +45,7 @@ export function CallProvider({ children }) {
     setCallDetails(null);
     setIsMuted(false);
     setIsVideoOff(false);
+    iceCandidateQueue.current = [];
   }, []);
 
   useEffect(() => {
@@ -72,24 +74,51 @@ export function CallProvider({ children }) {
       cleanupCall();
     });
 
-    // WebRTC Signaling
     socket.on('webrtc:offer', async (data) => {
-      if (!peerConnection.current) await initPeerConnection(data.conversationId, false);
-      await peerConnection.current.setRemoteDescription(new RTCSessionDescription(data.sdp));
-      const answer = await peerConnection.current.createAnswer();
-      await peerConnection.current.setLocalDescription(answer);
-      socket.emit('webrtc:answer', { conversationId: data.conversationId, sdp: answer });
+      try {
+        if (!peerConnection.current) await initPeerConnection(data.conversationId, false);
+        await peerConnection.current.setRemoteDescription(new RTCSessionDescription(data.sdp));
+        const answer = await peerConnection.current.createAnswer();
+        await peerConnection.current.setLocalDescription(answer);
+        socket.emit('webrtc:answer', { conversationId: data.conversationId, sdp: answer });
+        
+        // Process queued candidates
+        if (iceCandidateQueue.current.length > 0) {
+          for (const candidate of iceCandidateQueue.current) {
+            await peerConnection.current.addIceCandidate(candidate).catch(e => console.error("Error adding queued candidate", e));
+          }
+          iceCandidateQueue.current = [];
+        }
+      } catch (e) {
+        console.error("Error handling offer", e);
+      }
     });
 
     socket.on('webrtc:answer', async (data) => {
       if (peerConnection.current) {
-        await peerConnection.current.setRemoteDescription(new RTCSessionDescription(data.sdp));
+        try {
+          await peerConnection.current.setRemoteDescription(new RTCSessionDescription(data.sdp));
+          // Process queued candidates
+          if (iceCandidateQueue.current.length > 0) {
+            for (const candidate of iceCandidateQueue.current) {
+              await peerConnection.current.addIceCandidate(candidate).catch(e => console.error("Error adding queued candidate", e));
+            }
+            iceCandidateQueue.current = [];
+          }
+        } catch (e) {
+          console.error("Error setting remote description from answer", e);
+        }
       }
     });
 
     socket.on('webrtc:ice-candidate', async (data) => {
       if (peerConnection.current && data.candidate) {
-        await peerConnection.current.addIceCandidate(new RTCIceCandidate(data.candidate));
+        const candidate = new RTCIceCandidate(data.candidate);
+        if (peerConnection.current.remoteDescription) {
+          await peerConnection.current.addIceCandidate(candidate).catch(e => console.error("Error adding candidate", e));
+        } else {
+          iceCandidateQueue.current.push(candidate);
+        }
       }
     });
 
@@ -120,10 +149,16 @@ export function CallProvider({ children }) {
   };
 
   const initPeerConnection = async (conversationId, isInitiator) => {
-    // Basic setup, in production use TURN servers here
-    const pc = new RTCPeerConnection({
-      iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
-    });
+    const iceServers = [{ urls: 'stun:stun.l.google.com:19302' }];
+    if (import.meta.env.VITE_TURN_URL) {
+      iceServers.push({
+        urls: import.meta.env.VITE_TURN_URL,
+        username: import.meta.env.VITE_TURN_USERNAME,
+        credential: import.meta.env.VITE_TURN_PASSWORD
+      });
+    }
+
+    const pc = new RTCPeerConnection({ iceServers });
     
     peerConnection.current = pc;
 
@@ -134,8 +169,13 @@ export function CallProvider({ children }) {
     }
 
     pc.ontrack = (event) => {
-      remoteStream.current = event.streams[0];
-      setRemoteMediaStream(event.streams[0]);
+      let stream = remoteStream.current;
+      if (!stream) {
+        stream = new MediaStream();
+        remoteStream.current = stream;
+      }
+      stream.addTrack(event.track);
+      setRemoteMediaStream(new MediaStream(stream.getTracks()));
     };
 
     pc.onicecandidate = (event) => {

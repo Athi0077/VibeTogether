@@ -13,8 +13,11 @@ export default function ActiveCallScreen() {
     toggleMute, toggleVideo, endCall 
   } = useCall();
   
+  const [callDuration, setCallDuration] = useState(0);
+  
   const localVideoRef = useRef();
   const remoteVideoRef = useRef();
+  const remoteAudioRef = useRef();
 
   // Attach native streams for 1-to-1 WebRTC
   useEffect(() => {
@@ -24,10 +27,31 @@ export default function ActiveCallScreen() {
   }, [localMediaStream]);
 
   useEffect(() => {
-    if (remoteVideoRef.current && remoteMediaStream) {
+    if (remoteVideoRef.current && remoteMediaStream && callDetails?.callType === 'video') {
       remoteVideoRef.current.srcObject = remoteMediaStream;
     }
-  }, [remoteMediaStream]);
+    if (remoteAudioRef.current && remoteMediaStream && callDetails?.callType === 'audio') {
+      remoteAudioRef.current.srcObject = remoteMediaStream;
+    }
+  }, [remoteMediaStream, callDetails]);
+
+  useEffect(() => {
+    let interval;
+    if (callState === 'connected') {
+      interval = setInterval(() => {
+        setCallDuration(prev => prev + 1);
+      }, 1000);
+    } else {
+      setCallDuration(0);
+    }
+    return () => clearInterval(interval);
+  }, [callState]);
+
+  const formatDuration = (seconds) => {
+    const m = Math.floor(seconds / 60).toString().padStart(2, '0');
+    const s = (seconds % 60).toString().padStart(2, '0');
+    return `${m}:${s}`;
+  };
 
   if (callState !== 'connected' && callState !== 'connecting') return null;
   if (!callDetails) return null;
@@ -81,7 +105,8 @@ export default function ActiveCallScreen() {
                 </span>
             </div>
             <h2 className="text-2xl font-bold">{callState === 'connecting' ? 'Calling...' : 'Connected'}</h2>
-            <p className="text-gray-400 mt-2">00:00</p>
+            <p className="text-gray-400 mt-2">{formatDuration(callDuration)}</p>
+            <audio ref={remoteAudioRef} autoPlay playsInline className="hidden" />
           </div>
         )}
 
