@@ -15,4 +15,8 @@ const songSchema = new mongoose.Schema({
   visibility: { type: String, enum: ['public', 'private', 'friends'], default: 'public' },
 }, { timestamps: true });
 
+songSchema.index({ visibility: 1, createdAt: -1 });
+songSchema.index({ title: 'text', artist: 'text' });
+songSchema.index({ uploadedBy: 1, visibility: 1 });
+
 module.exports = mongoose.model('Song', songSchema);

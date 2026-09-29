@@ -137,14 +137,27 @@ const streamSong = async (req, res, next) => {
       }
     }
 
-    // Proxy the stream from Cloudinary
+    // Proxy the stream from Cloudinary with Range header support
     const https = require('https');
-    https.get(song.secureUrl, (cloudinaryRes) => {
+    const options = {
+      headers: {}
+    };
+    if (req.headers.range) {
+      options.headers.range = req.headers.range;
+    }
+
+    https.get(song.secureUrl, options, (cloudinaryRes) => {
       res.writeHead(cloudinaryRes.statusCode, cloudinaryRes.headers);
+      
+      // Stop downloading from Cloudinary if the client aborts/disconnects
+      req.on('close', () => {
+        cloudinaryRes.destroy();
+      });
+
       cloudinaryRes.pipe(res);
     }).on('error', (e) => {
-      console.error(e);
-      res.status(500).end();
+      console.error('Cloudinary stream error:', e);
+      if (!res.headersSent) res.status(500).end();
     });
 
   } catch (error) {
