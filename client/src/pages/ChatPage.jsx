@@ -148,6 +148,11 @@ export default function ChatPage() {
       setActiveConversationId(null);
       yt.setActiveConversationId(null);
     }
+
+    return () => {
+      setActiveConversationId(null);
+      yt.setActiveConversationId(null);
+    };
   }, [activeConversation, setActiveConversationId, yt]);
 
   const handleTyping = (e) => {

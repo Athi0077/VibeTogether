@@ -250,6 +250,34 @@ export function AudioProvider({ children }) {
   const playSong = async (song) => {
     const audio = audioRef.current;
     
+    // Attempt to unlock audio context synchronously for mobile browsers
+    if (audio) {
+      const p = audio.play();
+      if (p !== undefined) p.catch(() => {});
+      // Pause it immediately so it doesn't play old audio while waiting for network/approval
+      audio.pause();
+    }
+
+    const convId = song._conversationIdOverride || activeConversationId;
+    
+    if (convId && socket) {
+      // Shared Playback Request (Wait for approval)
+      let songObj = song;
+      if (!songObj.url && songObj._id) {
+         // Optionally prefetch here, but for UI just show pending
+      }
+      currentSongRef.current = songObj;
+      setCurrentSong(songObj);
+      
+      socket.emit('music:play', {
+        conversationId: convId,
+        songId: song._id,
+        playbackPosition: 0
+      });
+      return;
+    }
+
+    // --- SOLO PLAYBACK ---
     let playUrl = song.url;
     let songObj = song;
     if (!playUrl && song._id) {
@@ -275,19 +303,6 @@ export function AudioProvider({ children }) {
       if (songObj && songObj._id) {
         api.post(`/songs/${songObj._id}/play`).catch(() => {});
       }
-    }
-    
-    // Unlock audio for mobile browsers with valid src
-    const p = audio.play();
-    if (p !== undefined) p.catch(() => {});
-
-    if (activeConversationId && socket) {
-       socket.emit('music:play', {
-         conversationId: activeConversationId,
-         songId: songObj._id,
-         playbackPosition: 0
-       });
-       return;
     }
 
     // Solo Playback (No active conversation)
@@ -321,7 +336,14 @@ export function AudioProvider({ children }) {
           });
         }
       } else {
-        if (socket && !isRemoteActionRef.current && activeConversationId) {
+        if (socket && !isRemoteActionRef.current && activeConversationId && sessionStatus === 'playing') {
+          socket.emit('music:resume', {
+            conversationId: activeConversationId,
+            playbackPosition: audio.currentTime
+          });
+          return;
+        } else if (socket && !isRemoteActionRef.current && activeConversationId) {
+          // If the session isn't playing yet, maybe it was a new play from inside the chat
           socket.emit('music:play', {
             conversationId: activeConversationId,
             songId: currentSong._id,

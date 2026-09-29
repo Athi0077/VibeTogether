@@ -137,6 +137,27 @@ module.exports = (io, socket) => {
     broadcastState(conversationId);
   });
 
+  socket.on('music:resume', async (data) => {
+    const { conversationId, playbackPosition } = data;
+    if (!conversationId) return;
+
+    if (!(await checkMembership(conversationId))) return;
+
+    let state = playbackStates.get(conversationId);
+    if (!state || state.status !== 'playing') return;
+
+    playbackStates.set(conversationId, {
+      ...state,
+      playbackPosition: playbackPosition,
+      isPlaying: true,
+      serverTimestamp: Date.now(),
+      revision: state.revision + 1,
+      updatedBy: user._id
+    });
+
+    broadcastState(conversationId);
+  });
+
   socket.on('music:stop', async (data) => {
     const { conversationId } = data;
     if (!conversationId) return;
