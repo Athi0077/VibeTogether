@@ -98,12 +98,28 @@ export function AudioProvider({ children }) {
               setCurrentSong(songObj);
               audio.src = data.playbackUrl;
               
-              await new Promise(resolve => {
+              await new Promise((resolve) => {
                 const onCanPlay = () => {
-                  audio.removeEventListener('canplay', onCanPlay);
+                  cleanup();
                   resolve();
                 };
-                audio.addEventListener('canplay', onCanPlay);
+                const onError = () => {
+                  cleanup();
+                  resolve();
+                };
+                const cleanup = () => {
+                  audio.removeEventListener('canplay', onCanPlay);
+                  audio.removeEventListener('error', onError);
+                  audio.removeEventListener('abort', onError);
+                };
+                
+                if (audio.readyState >= 3) {
+                  resolve();
+                } else {
+                  audio.addEventListener('canplay', onCanPlay);
+                  audio.addEventListener('error', onError);
+                  audio.addEventListener('abort', onError);
+                }
               });
             }
           } catch (e) {
@@ -133,8 +149,13 @@ export function AudioProvider({ children }) {
         }
 
         if (state.isPlaying && audio.paused) {
-          await audio.play();
-          setIsPlaying(true);
+          try {
+            await audio.play();
+            setIsPlaying(true);
+          } catch (playError) {
+            console.error("Playback failed to start:", playError);
+            setIsPlaying(false);
+          }
         } else if (!state.isPlaying && !audio.paused) {
           audio.pause();
           setIsPlaying(false);
@@ -317,6 +338,14 @@ export function AudioProvider({ children }) {
 
   const acceptMusicRequest = () => {
     if (socket && incomingRequest) {
+      const audio = audioRef.current;
+      if (audio) {
+        // Unlock audio for mobile/browsers during user interaction
+        audio.play().catch(() => {}).finally(() => {
+          if (!isPlaying) audio.pause();
+        });
+      }
+
       socket.emit('music:accept', { 
         conversationId: incomingRequest.conversationId,
         requestId: incomingRequest.requestId 
