@@ -5,8 +5,9 @@ import { useSocket } from '../context/SocketContext';
 import { useAuth } from '../context/AuthContext';
 import { useCall } from '../context/CallContext';
 import SharedPlaylist from '../components/SharedPlaylist';
+import { YouTubeUrlModal } from '../features/youtube-player';
+import { useYouTube } from '../context/YouTubeContext';
 import api from '../services/api';
-import { useYouTubePlayer, YouTubeMiniPlayer, YouTubeUrlModal, YouTubePlayer } from '../features/youtube-player';
 
 const formatTime = (time) => {
   if (isNaN(time)) return '0:00';
@@ -32,8 +33,7 @@ export default function ChatPage() {
   const { socket } = useSocket();
   const { user } = useAuth();
   const { initiateCall } = useCall();
-  
-  const ytPlayer = useYouTubePlayer(activeConversation?._id);
+  const yt = useYouTube();
   
   const typingTimeoutRef = useRef(null);
 
@@ -143,10 +143,12 @@ export default function ChatPage() {
   useEffect(() => {
     if (activeConversation) {
       setActiveConversationId(activeConversation._id);
+      yt.setActiveConversationId(activeConversation._id);
     } else {
       setActiveConversationId(null);
+      yt.setActiveConversationId(null);
     }
-  }, [activeConversation, setActiveConversationId]);
+  }, [activeConversation, setActiveConversationId, yt]);
 
   const handleTyping = (e) => {
     setInputText(e.target.value);
@@ -352,22 +354,11 @@ export default function ChatPage() {
         )}
       </div>
 
-      <YouTubeMiniPlayer {...ytPlayer} />
       <YouTubeUrlModal 
-        isOpen={ytPlayer.isModalOpen} 
-        onClose={() => ytPlayer.setIsModalOpen(false)} 
-        onAdd={(video) => ytPlayer.requestPlay(video)} 
+        isOpen={yt.isModalOpen} 
+        onClose={() => yt.setIsModalOpen(false)} 
+        onAdd={(video) => yt.requestPlay(video)} 
       />
-      
-      {/* Invisible player container if currentVideo exists, so video can play in background */}
-      {ytPlayer.currentVideo && (
-        <div className="hidden">
-           <YouTubePlayer 
-             videoId={ytPlayer.currentVideo.videoId} 
-             playerRef={ytPlayer.playerRef} 
-           />
-        </div>
-      )}
     </div>
   );
 }

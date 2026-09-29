@@ -1,13 +1,17 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
-import api from '../../../services/api';
-import { useSocket } from '../../../context/SocketContext';
+import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
+import api from '../services/api';
+import { useSocket } from './SocketContext';
 
-export function useYouTubePlayer(activeConversationId = 'demo-room') {
+const YouTubeContext = createContext();
+
+export function YouTubeProvider({ children }) {
   const [currentVideo, setCurrentVideo] = useState(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [sessionStatus, setSessionStatus] = useState('idle');
   const [incomingRequest, setIncomingRequest] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isMinimized, setIsMinimized] = useState(true);
+  const [activeConversationId, setActiveConversationId] = useState(null);
   const [playlist, setPlaylist] = useState([]);
   const [savedSongs, setSavedSongs] = useState([]);
   const { socket } = useSocket();
@@ -36,7 +40,6 @@ export function useYouTubePlayer(activeConversationId = 'demo-room') {
       if (state.isPlaying) {
         setIsPlaying(true);
         if (playerRef.current && typeof playerRef.current.playVideo === 'function') {
-          // Sync position
           const drift = (Date.now() - state.serverTimestamp) / 1000;
           const expected = state.playbackPosition + drift;
           const current = playerRef.current.getCurrentTime();
@@ -91,8 +94,8 @@ export function useYouTubePlayer(activeConversationId = 'demo-room') {
   }, [socket, currentVideo, activeConversationId]);
 
   const requestPlay = (video) => {
-    if (!socket) return;
-    setCurrentVideo(video); // Optimistic UI update
+    if (!socket || !activeConversationId) return;
+    setCurrentVideo(video);
     socket.emit('yt:play', {
       conversationId: activeConversationId,
       videoId: video.videoId,
@@ -128,20 +131,20 @@ export function useYouTubePlayer(activeConversationId = 'demo-room') {
     if (isPlaying) {
       playerRef.current.pauseVideo();
       setIsPlaying(false);
-      if (socket) {
+      if (socket && activeConversationId) {
         socket.emit('yt:pause', { conversationId: activeConversationId, playbackPosition: currentTime });
       }
     } else {
       playerRef.current.playVideo();
       setIsPlaying(true);
-      if (socket) {
+      if (socket && activeConversationId) {
         socket.emit('yt:play', { conversationId: activeConversationId, videoId: currentVideo.videoId, playbackPosition: currentTime });
       }
     }
   };
 
   const stopVideo = () => {
-    if (socket) {
+    if (socket && activeConversationId) {
       socket.emit('yt:stop', { conversationId: activeConversationId });
     }
   };
@@ -167,22 +170,27 @@ export function useYouTubePlayer(activeConversationId = 'demo-room') {
     }
   };
 
-  return {
-    currentVideo,
-    isPlaying,
-    sessionStatus,
-    incomingRequest,
-    isModalOpen,
-    setIsModalOpen,
-    playlist,
-    requestPlay,
-    acceptRequest,
-    rejectRequest,
-    togglePlay,
-    stopVideo,
-    playerRef,
-    savedSongs,
-    saveSong,
-    removeSavedSong
-  };
+  return (
+    <YouTubeContext.Provider value={{
+      currentVideo, setCurrentVideo,
+      isPlaying,
+      sessionStatus,
+      incomingRequest,
+      isModalOpen, setIsModalOpen,
+      isMinimized, setIsMinimized,
+      activeConversationId, setActiveConversationId,
+      playlist, setPlaylist,
+      savedSongs, saveSong, removeSavedSong,
+      requestPlay,
+      acceptRequest,
+      rejectRequest,
+      togglePlay,
+      stopVideo,
+      playerRef
+    }}>
+      {children}
+    </YouTubeContext.Provider>
+  );
 }
+
+export const useYouTube = () => useContext(YouTubeContext);

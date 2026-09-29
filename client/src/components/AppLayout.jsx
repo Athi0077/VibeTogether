@@ -5,6 +5,7 @@ import MobileBottomNav from './MobileBottomNav';
 import MusicPlayer from './MusicPlayer';
 import MusicRequestPopup from './MusicRequestPopup';
 import UserTour from './UserTour';
+import GlobalYouTubePlayer from './GlobalYouTubePlayer';
 import { useAudio } from '../context/AudioContext';
 import { AnimatePresence, motion } from 'framer-motion';
 
@@ -40,6 +41,9 @@ export default function AppLayout() {
 
       {/* Mobile Bottom Navigation */}
       <MobileBottomNav />
+
+      {/* Global YouTube Player */}
+      <GlobalYouTubePlayer />
     </div>
   );
 }

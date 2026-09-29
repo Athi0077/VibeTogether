@@ -12,14 +12,14 @@ const checkMembership = async (conversationId, userId) => {
   return conv.members.includes(userId);
 };
 
-const uploadSong = async (req, res, next) => {
+  const uploadSong = async (req, res, next) => {
   try {
-    const { conversationId, title, artist, duration, originalFileName, contentType } = req.body;
+    const { conversationId, title, artist, duration, originalFileName, contentType, visibility } = req.body;
     const file = req.file;
 
-    if (!conversationId || !file) {
+    if (!file) {
       res.status(400);
-      throw new Error('Missing required fields or file');
+      throw new Error('Missing audio file');
     }
 
     if (file.size > 25 * 1024 * 1024) { // 25 MB
@@ -27,17 +27,21 @@ const uploadSong = async (req, res, next) => {
       throw new Error('File size exceeds 25MB limit');
     }
 
-    // Verify conversation access
-    const isMember = await checkMembership(conversationId, req.user._id);
-    if (!isMember) {
-      res.status(403);
-      throw new Error('Not authorized to access this conversation');
+    // Verify conversation access if conversationId is provided
+    if (conversationId) {
+      const isMember = await checkMembership(conversationId, req.user._id);
+      if (!isMember) {
+        res.status(403);
+        throw new Error('Not authorized to access this conversation');
+      }
     }
+
+    const folderPath = conversationId ? `music_partner/songs/${conversationId}` : 'music_partner/songs/public';
 
     // Upload to Cloudinary
     const result = await cloudinary.uploader.upload(file.path, {
       resource_type: 'video', // for audio files
-      folder: `music_partner/songs/${conversationId}`,
+      folder: folderPath,
     });
 
     // Clean up local temp file
@@ -53,7 +57,8 @@ const uploadSong = async (req, res, next) => {
       publicId: result.public_id,
       secureUrl: result.secure_url,
       uploadedBy: req.user._id,
-      conversationId
+      conversationId: conversationId || undefined,
+      visibility: visibility || (conversationId ? 'friends' : 'public')
     });
 
     res.status(201).json(song);
@@ -257,7 +262,7 @@ const toggleLikeSong = async (req, res, next) => {
 
 const getTrendingSongs = async (req, res, next) => {
   try {
-    const trending = await Song.find()
+    const trending = await Song.find({ visibility: 'public' })
       .sort({ likesCount: -1, createdAt: -1 })
       .limit(10)
       .populate('uploadedBy', 'name avatar');
@@ -290,6 +295,49 @@ const getLikedSongs = async (req, res, next) => {
   }
 };
 
+const getPublicSongs = async (req, res, next) => {
+  try {
+    const songs = await Song.find({ visibility: 'public' })
+      .populate('uploadedBy', 'name avatar')
+      .sort({ createdAt: -1 });
+    
+    const uniqueSongs = [];
+    const seenTitles = new Set();
+    for (const song of songs) {
+      if (!seenTitles.has(song.title.toLowerCase())) {
+        seenTitles.add(song.title.toLowerCase());
+        uniqueSongs.push(song);
+      }
+    }
+    res.json(uniqueSongs);
+  } catch (error) {
+    next(error);
+  }
+};
+
+const searchSongs = async (req, res, next) => {
+  try {
+    const { query } = req.query;
+    if (!query) return res.json([]);
+    
+    const searchRegex = new RegExp(query, 'i');
+    const songs = await Song.find({ 
+      visibility: 'public',
+      $or: [
+        { title: searchRegex },
+        { artist: searchRegex }
+      ]
+    })
+      .populate('uploadedBy', 'name avatar')
+      .sort({ likesCount: -1 })
+      .limit(20);
+      
+    res.json(songs);
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   uploadSong,
   getSongsByConversation,
@@ -300,4 +348,6 @@ module.exports = {
   toggleLikeSong,
   getTrendingSongs,
   getLikedSongs,
+  getPublicSongs,
+  searchSongs,
 };

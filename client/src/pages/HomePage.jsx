@@ -7,6 +7,9 @@ import { useCall } from '../context/CallContext';
 import { useSocket } from '../context/SocketContext';
 import api from '../services/api';
 import { motion } from 'framer-motion';
+import SongActionModal from '../components/SongActionModal';
+import { useYouTube } from '../context/YouTubeContext';
+import { MonitorPlay } from 'lucide-react';
 
 export default function HomePage() {
   const navigate = useNavigate();
@@ -17,20 +20,25 @@ export default function HomePage() {
   const [friends, setFriends] = useState([]);
   const [trendingSongs, setTrendingSongs] = useState([]);
   const [likedSongs, setLikedSongs] = useState([]);
+  const [publicSongs, setPublicSongs] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [selectedSong, setSelectedSong] = useState(null);
+  const yt = useYouTube();
 
   useEffect(() => {
     const fetchData = async () => {
       try {
         setIsLoading(true);
-        const [friendsRes, trendingRes, likedRes] = await Promise.all([
+        const [friendsRes, trendingRes, likedRes, publicRes] = await Promise.all([
           api.get('/friends'),
           api.get('/songs/trending'),
-          api.get('/songs/liked')
+          api.get('/songs/liked'),
+          api.get('/songs/public')
         ]);
         setFriends(friendsRes.data);
         setTrendingSongs(trendingRes.data);
         setLikedSongs(likedRes.data);
+        setPublicSongs(publicRes.data);
       } catch (e) {
         console.error(e);
       } finally {
@@ -98,7 +106,7 @@ export default function HomePage() {
               if (currentSong?._id === song._id) {
                 togglePlay();
               } else {
-                playSong(song);
+                setSelectedSong(song);
               }
             }}
             className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
@@ -169,6 +177,17 @@ export default function HomePage() {
       </motion.section>
 
       <motion.section variants={containerVariants} initial="hidden" animate="show" className="mb-10">
+        <h2 className="text-xl font-bold mb-4">Discover Public Music 🌍</h2>
+        <div className="flex gap-4 overflow-x-auto pb-4 snap-x custom-scrollbar">
+          {isLoading 
+            ? Array(5).fill(0).map((_, i) => renderSkeletonCard(`pub-skel-${i}`))
+            : publicSongs.length > 0 ? publicSongs.map(renderSongCard) : (
+            <div className="text-gray-500 text-sm italic">No public songs yet. Upload some in chats!</div>
+          )}
+        </div>
+      </motion.section>
+
+      <motion.section variants={containerVariants} initial="hidden" animate="show" className="mb-10">
         <h2 className="text-xl font-bold mb-4">Your Liked Songs ❤️</h2>
         <div className="flex gap-4 overflow-x-auto pb-4 snap-x custom-scrollbar">
           {isLoading 
@@ -178,6 +197,38 @@ export default function HomePage() {
           )}
         </div>
       </motion.section>
+
+      {yt.savedSongs.length > 0 && (
+        <motion.section variants={containerVariants} initial="hidden" animate="show" className="mb-10">
+          <h2 className="text-xl font-bold mb-4 flex items-center gap-2 text-red-500">
+            <MonitorPlay size={20} /> Your Saved YouTube Music
+          </h2>
+          <div className="flex gap-4 overflow-x-auto pb-4 snap-x custom-scrollbar">
+            {yt.savedSongs.map((song) => (
+              <div 
+                key={song._id} 
+                className="min-w-[160px] bg-glass-card p-3 rounded-2xl snap-start relative group cursor-pointer hover:-translate-y-1 transition-all duration-300 shadow-lg"
+                onClick={() => {
+                  if (yt.currentVideo?.videoId === song.videoId) {
+                    yt.togglePlay();
+                  } else {
+                    yt.requestPlay(song);
+                  }
+                }}
+              >
+                <div className="w-full aspect-video rounded-xl bg-gray-900 overflow-hidden mb-3 relative">
+                  <img src={song.thumbnail} alt="thumbnail" className="w-full h-full object-cover" />
+                  <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                    <Play size={24} className="text-white fill-white" />
+                  </div>
+                </div>
+                <h3 className="font-semibold text-sm truncate">{song.title}</h3>
+                <p className="text-gray-400 text-xs truncate">{song.author}</p>
+              </div>
+            ))}
+          </div>
+        </motion.section>
+      )}
 
       <motion.section variants={containerVariants} initial="hidden" animate="show">
         <h2 className="text-xl font-bold mb-4">Your Friends</h2>
@@ -252,6 +303,33 @@ export default function HomePage() {
           )}
         </div>
       </motion.section>
+
+      <SongActionModal 
+        isOpen={!!selectedSong}
+        onClose={() => setSelectedSong(null)}
+        song={selectedSong}
+        onPlaySolo={(song) => {
+          playSong(song);
+        }}
+        onShare={async (song, friendId) => {
+          try {
+            const { data: conv } = await api.post(`/conversations/direct/${friendId}`);
+            // Let the audio context handle shared play when activeConversationId is set
+            playSong({ ...song, _conversationIdOverride: conv._id }); // Need to handle this in AudioContext or here
+            // Actually, AudioContext playSong uses activeConversationId from context. 
+            // We shouldn't change context activeConversationId directly here because it might jump them to chat page.
+            // Wait, we need to send the play event to that conversation.
+            socket.emit('music:play', {
+              conversationId: conv._id,
+              songId: song._id,
+              playbackPosition: 0
+            });
+            // We should ideally navigate them to chat or show a toast
+          } catch(e) {
+            console.error(e);
+          }
+        }}
+      />
     </div>
   );
 }

@@ -10,7 +10,9 @@ const {
   getMyLibrary,
   toggleLikeSong,
   getTrendingSongs,
-  getLikedSongs 
+  getLikedSongs,
+  getPublicSongs,
+  searchSongs 
 } = require('../controllers/songController');
 const { protect } = require('../middleware/authMiddleware');
 
@@ -19,6 +21,8 @@ const upload = multer({ dest: 'uploads/' });
 router.use(protect);
 
 router.get('/library', getMyLibrary);
+router.get('/public', getPublicSongs);
+router.get('/search', searchSongs);
 router.get('/trending', getTrendingSongs);
 router.get('/liked', getLikedSongs);
 router.post('/:songId/like', toggleLikeSong);

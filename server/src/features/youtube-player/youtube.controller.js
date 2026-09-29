@@ -1,4 +1,5 @@
 const youtubeService = require('./youtube.service');
+const SavedYouTubeSong = require('../../models/SavedYouTubeSong');
 
 // Simple in-memory playlist for isolated feature
 const playlists = new Map(); // conversationId -> array of songs
@@ -57,8 +58,58 @@ const getPlaylist = async (req, res, next) => {
   }
 };
 
+const saveSong = async (req, res, next) => {
+  try {
+    const { videoId, title, thumbnail, author } = req.body;
+    
+    // Check if already saved
+    const existing = await SavedYouTubeSong.findOne({ userId: req.user._id, videoId });
+    if (existing) {
+      return res.status(400).json({ error: 'Song already saved' });
+    }
+
+    const savedSong = await SavedYouTubeSong.create({
+      userId: req.user._id,
+      videoId,
+      title,
+      thumbnail,
+      author
+    });
+
+    res.status(201).json(savedSong);
+  } catch (error) {
+    if (error.code === 11000) {
+      return res.status(400).json({ error: 'Song already saved' });
+    }
+    next(error);
+  }
+};
+
+const removeSavedSong = async (req, res, next) => {
+  try {
+    const { videoId } = req.params;
+    await SavedYouTubeSong.findOneAndDelete({ userId: req.user._id, videoId });
+    res.json({ message: 'Saved song removed' });
+  } catch (error) {
+    next(error);
+  }
+};
+
+const getSavedSongs = async (req, res, next) => {
+  try {
+    const savedSongs = await SavedYouTubeSong.find({ userId: req.user._id })
+      .sort({ createdAt: -1 });
+    res.json(savedSongs);
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   validateUrl,
   addToPlaylist,
-  getPlaylist
+  getPlaylist,
+  saveSong,
+  removeSavedSong,
+  getSavedSongs
 };

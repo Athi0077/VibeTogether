@@ -1,9 +1,12 @@
 import { useState, useEffect } from 'react';
-import { Search, Music, Play, Pause, Library } from 'lucide-react';
+import { Search, Music, Play, Pause, Library, MonitorPlay } from 'lucide-react';
 import { useAudio } from '../context/AudioContext';
+import { useYouTube } from '../context/YouTubeContext';
+import { useSocket } from '../context/SocketContext';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import api from '../services/api';
+import SongActionModal from '../components/SongActionModal';
 
 const formatTime = (time) => {
   if (isNaN(time)) return '0:00';
@@ -15,6 +18,9 @@ const formatTime = (time) => {
 export default function MusicLibraryPage() {
   const { library, setLibraryData, currentSong, isPlaying, playSong, togglePlay } = useAudio();
   const [isLoading, setIsLoading] = useState(true);
+  const [selectedSong, setSelectedSong] = useState(null);
+  const { socket } = useSocket();
+  const yt = useYouTube();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -88,7 +94,7 @@ export default function MusicLibraryPage() {
                       if (isThisPlaying) {
                         togglePlay();
                       } else {
-                        playSong(song);
+                        setSelectedSong(song);
                       }
                     }}
                     className="w-12 h-12 rounded-xl bg-gradient-to-br from-gray-800 to-gray-900 flex items-center justify-center shrink-0 cursor-pointer relative overflow-hidden group-hover:shadow-lg"
@@ -135,6 +141,62 @@ export default function MusicLibraryPage() {
           </motion.div>
         )}
       </div>
+
+      {yt.savedSongs.length > 0 && (
+        <div className="mt-4 border-t border-white/10 pt-4">
+          <h2 className="text-xl font-bold mb-4 flex items-center gap-2 text-red-500">
+            <MonitorPlay /> YouTube Saved
+          </h2>
+          <div className="flex gap-4 overflow-x-auto pb-4 custom-scrollbar">
+            {yt.savedSongs.map((song) => (
+              <div 
+                key={song._id} 
+                className="min-w-[160px] bg-glass-card p-3 rounded-2xl relative group cursor-pointer hover:-translate-y-1 transition"
+                onClick={() => {
+                  // Play youtube song
+                  if (yt.currentVideo?.videoId === song.videoId) {
+                    yt.togglePlay();
+                  } else {
+                    yt.requestPlay(song);
+                  }
+                }}
+              >
+                <div className="w-full aspect-video rounded-lg overflow-hidden mb-2 relative">
+                  <img src={song.thumbnail} alt="thumb" className="w-full h-full object-cover" />
+                  <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition">
+                    <Play className="text-white fill-white" size={24} />
+                  </div>
+                </div>
+                <h3 className="font-semibold text-sm truncate text-white">{song.title}</h3>
+                <p className="text-xs text-gray-400 truncate">{song.author}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <SongActionModal  
+        isOpen={!!selectedSong}
+        onClose={() => setSelectedSong(null)}
+        song={selectedSong}
+        onPlaySolo={(song) => {
+          playSong(song);
+        }}
+        onShare={async (song, friendId) => {
+          try {
+            const { data: conv } = await api.post(`/conversations/direct/${friendId}`);
+            socket.emit('music:play', {
+              conversationId: conv._id,
+              songId: song._id,
+              playbackPosition: 0
+            });
+            // Show a toast or navigate to chat
+            navigate('/chat');
+          } catch(e) {
+            console.error(e);
+          }
+        }}
+      />
     </div>
   );
 }
