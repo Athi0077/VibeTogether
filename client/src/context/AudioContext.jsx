@@ -89,8 +89,8 @@ export function AudioProvider({ children }) {
       setIncomingRequest(null);
 
       try {
-        // If it's a new song, load it
-        if (!currentSongRef.current || currentSongRef.current._id !== state.songId) {
+        const isSrcMissing = !audio.src || audio.src === window.location.href || audio.src.endsWith('undefined');
+        if (!currentSongRef.current || currentSongRef.current._id !== state.songId || isSrcMissing) {
           let songObj = library.find(s => s._id === state.songId);
           setIsLoading(true);
           
@@ -156,18 +156,27 @@ export function AudioProvider({ children }) {
            expectedPosition += drift;
         }
 
-        if (Math.abs(audio.currentTime - expectedPosition) > 0.5 || !state.isPlaying) {
-          audio.currentTime = expectedPosition;
-          setProgress(expectedPosition);
+        if (audio.readyState >= 1) { // HAVE_METADATA
+          if (Math.abs(audio.currentTime - expectedPosition) > 0.5 || !state.isPlaying) {
+            audio.currentTime = expectedPosition;
+            setProgress(expectedPosition);
+          }
         }
 
         if (state.isPlaying && audio.paused) {
           try {
-            await audio.play();
+            const playPromise = audio.play();
+            if (playPromise !== undefined) {
+              await playPromise;
+            }
             setIsPlaying(true);
           } catch (playError) {
-            console.error("Playback failed to start:", playError);
-            setIsPlaying(false);
+            if (playError.name === 'AbortError') {
+              console.log("Play aborted safely by a new request or pause.");
+            } else {
+              console.error("Playback failed to start:", playError);
+              setIsPlaying(false);
+            }
           }
         } else if (!state.isPlaying && !audio.paused) {
           audio.pause();
@@ -249,14 +258,7 @@ export function AudioProvider({ children }) {
 
   const playSong = async (song) => {
     const audio = audioRef.current;
-    
-    // Attempt to unlock audio context synchronously for mobile browsers
-    if (audio) {
-      const p = audio.play();
-      if (p !== undefined) p.catch(() => {});
-      // Pause it immediately so it doesn't play old audio while waiting for network/approval
-      audio.pause();
-    }
+    // (Removed unlock hack to prevent AbortError. Audio context is unlocked by user interaction in play handler or accept handler.)
 
     const convId = song._conversationIdOverride || activeConversationId;
     
@@ -352,11 +354,14 @@ export function AudioProvider({ children }) {
           return;
         }
 
-        await audio.play();
+        const playPromise = audio.play();
+        if (playPromise !== undefined) {
+          await playPromise;
+        }
         setIsPlaying(true);
       }
     } catch (e) {
-      console.error(e);
+      if (e.name !== 'AbortError') console.error("Toggle play error:", e);
     }
   };
 
@@ -417,7 +422,9 @@ export function AudioProvider({ children }) {
         // Unlock audio for mobile/browsers during user interaction with actual src
         const p = audio.play();
         if (p !== undefined) {
-          p.catch(() => {});
+          p.catch((err) => {
+            if (err.name !== 'AbortError') console.error("Auto-play on accept failed:", err);
+          });
         }
       }
 

@@ -22,7 +22,9 @@ export default function YouTubePlayer({ videoId, onReady, onStateChange, playerR
           disablekb: 1,
           fs: 0,
           rel: 0,
-          modestbranding: 1
+          modestbranding: 1,
+          enablejsapi: 1,
+          origin: window.location.origin
         },
         events: {
           onReady: (e) => {
