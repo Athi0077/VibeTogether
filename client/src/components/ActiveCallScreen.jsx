@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Mic, MicOff, Video, VideoOff, PhoneOff } from 'lucide-react';
 import { useCall } from '../context/CallContext';
 import { LiveKitRoom, VideoConference } from '@livekit/components-react';
