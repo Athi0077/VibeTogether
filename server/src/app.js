@@ -24,10 +24,7 @@ app.use(helmet({
   crossOriginResourcePolicy: { policy: "cross-origin" }
 }));
 app.use(cors({
-  origin: function(origin, callback) {
-    if (!origin) return callback(null, true);
-    return callback(null, origin);
-  },
+  origin: true,
   credentials: true
 }));
 app.use(express.json());

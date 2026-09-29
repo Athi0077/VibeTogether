@@ -4,7 +4,10 @@ const app = require('./app');
 const connectDB = require('./config/db');
 const initSocketServer = require('./sockets');
 
-const PORT = process.env.PORT || 5000;
+const dns = require("node:dns")
+dns.setServers(['8.8.8.8', '8.8.4.4'])
+
+const PORT = process.env.PORT || 5005;
 const server = http.createServer(app);
 
 // Initialize Socket.io
