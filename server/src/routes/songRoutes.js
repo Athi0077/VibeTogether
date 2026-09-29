@@ -14,7 +14,8 @@ const {
   getPublicSongs,
   searchSongs,
   recordPlayHistory,
-  getRecommendations 
+  getRecommendations,
+  streamSong
 } = require('../controllers/songController');
 const { protect } = require('../middleware/authMiddleware');
 
@@ -34,6 +35,7 @@ router.post('/upload', upload.single('file'), uploadSong);
 router.post('/convert-only', upload.single('file'), convertOnly);
 router.get('/conversation/:conversationId', getSongsByConversation);
 router.get('/:songId/playback-url', getPlayback);
+router.get('/:songId/stream', streamSong);
 router.delete('/:songId', deleteSong);
 
 module.exports = router;

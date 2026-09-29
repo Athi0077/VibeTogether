@@ -274,7 +274,7 @@ export function AudioProvider({ children }) {
     
     // Unlock audio for mobile browsers with valid src
     const p = audio.play();
-    if (p !== undefined) p.catch(() => {}).finally(() => audio.pause());
+    if (p !== undefined) p.catch(() => {});
 
     if (activeConversationId && socket) {
        socket.emit('music:play', {
@@ -291,8 +291,6 @@ export function AudioProvider({ children }) {
     try {
       if (!playUrl) throw new Error('No playback URL available');
 
-
-      audio.src = playUrl;
       await audio.play();
       setIsPlaying(true);
     } catch (error) {
@@ -388,9 +386,7 @@ export function AudioProvider({ children }) {
         // Unlock audio for mobile/browsers during user interaction with actual src
         const p = audio.play();
         if (p !== undefined) {
-          p.catch(() => {}).finally(() => {
-            if (!isPlaying) audio.pause();
-          });
+          p.catch(() => {});
         }
       }
 

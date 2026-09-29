@@ -106,8 +106,47 @@ const getPlayback = async (req, res, next) => {
       }
     }
 
-    // Cloudinary URLs are already public and secure
-    res.json({ playbackUrl: song.secureUrl, song });
+    // Instead of returning the direct Cloudinary URL which could be shared,
+    // we return an authenticated proxy route on our own server.
+    const proxyUrl = `${req.protocol}://${req.get('host')}/api/songs/${song._id}/stream`;
+    res.json({ playbackUrl: proxyUrl, song });
+  } catch (error) {
+    next(error);
+  }
+};
+
+const streamSong = async (req, res, next) => {
+  try {
+    const { songId } = req.params;
+    const song = await Song.findById(songId);
+    if (!song) {
+      res.status(404);
+      throw new Error('Song not found');
+    }
+
+    if (song.visibility === 'private' && song.uploadedBy.toString() !== req.user._id.toString()) {
+       res.status(403);
+       throw new Error('Not authorized to play this song');
+    }
+
+    if (song.conversationId) {
+      const isMember = await checkMembership(song.conversationId, req.user._id);
+      if (!isMember) {
+        res.status(403);
+        throw new Error('Not authorized to play this song');
+      }
+    }
+
+    // Proxy the stream from Cloudinary
+    const https = require('https');
+    https.get(song.secureUrl, (cloudinaryRes) => {
+      res.writeHead(cloudinaryRes.statusCode, cloudinaryRes.headers);
+      cloudinaryRes.pipe(res);
+    }).on('error', (e) => {
+      console.error(e);
+      res.status(500).end();
+    });
+
   } catch (error) {
     next(error);
   }
@@ -427,4 +466,5 @@ module.exports = {
   searchSongs,
   recordPlayHistory,
   getRecommendations,
+  streamSong,
 };
