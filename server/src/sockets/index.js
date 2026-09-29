@@ -4,6 +4,7 @@ const User = require('../models/User');
 const registerChatHandlers = require('./chatHandler');
 const registerMusicHandlers = require('./musicHandler');
 const registerCallHandlers = require('./callHandler');
+const registerYoutubeHandlers = require('../features/youtube-player/youtube.socket');
 
 const userSockets = new Map();
 
@@ -57,6 +58,7 @@ const initSocketServer = (server) => {
     registerChatHandlers(io, socket);
     registerMusicHandlers(io, socket);
     registerCallHandlers(io, socket);
+    registerYoutubeHandlers(io, socket);
 
     socket.on('user:listening', async ({ songTitle }) => {
       await User.findByIdAndUpdate(userId, { currentListeningTo: songTitle });

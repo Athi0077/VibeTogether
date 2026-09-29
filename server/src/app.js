@@ -63,6 +63,7 @@ app.use('/api/friends', friendRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/conversations', conversationRoutes);
 app.use('/api/playlists', playlistRoutes);
+app.use('/api/youtube-player', require('./features/youtube-player/youtube.routes'));
 
 // Error Handling Middleware
 app.use(errorHandler);
