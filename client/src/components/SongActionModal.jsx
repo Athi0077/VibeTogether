@@ -77,7 +77,7 @@ export default function SongActionModal({ isOpen, onClose, song, onPlaySolo, onS
                </div>
                <div className="min-w-0">
                  <h2 className="text-lg font-bold text-white truncate pr-6">{song.title}</h2>
-                 <p className="text-sm text-gray-400 truncate">{song.artist}</p>
+                 <p className="text-sm text-gray-400 truncate">{song.artist || song.author}</p>
                </div>
             </div>
           </div>

@@ -9,28 +9,6 @@ export default function YouTubeMiniPlayer({
   
   if (sessionStatus === 'idle' && !incomingRequest && !currentVideo) return null;
 
-  if (incomingRequest) {
-    return (
-      <div className="fixed bottom-24 right-4 md:right-8 bg-[#120f18] border border-red-500/20 p-4 rounded-2xl shadow-2xl shadow-red-900/20 max-w-sm w-full z-50 flex items-center justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <MonitorPlay className="text-red-500" size={24} />
-          <div>
-            <p className="text-white text-sm font-medium">YouTube Request</p>
-            <p className="text-gray-400 text-xs">Partner wants to watch a video</p>
-          </div>
-        </div>
-        <div className="flex gap-2">
-          <button onClick={rejectRequest} className="p-2 bg-white/10 hover:bg-white/20 rounded-lg text-white">
-            <X size={16} />
-          </button>
-          <button onClick={acceptRequest} className="p-2 bg-red-600 hover:bg-red-700 rounded-lg text-white">
-            <Check size={16} />
-          </button>
-        </div>
-      </div>
-    );
-  }
-
   if (sessionStatus === 'pending') {
     return (
       <div className="fixed bottom-24 right-4 md:right-8 bg-[#120f18] border border-gray-700 p-4 rounded-2xl shadow-2xl z-50 flex items-center gap-3">

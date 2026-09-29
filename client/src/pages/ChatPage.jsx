@@ -362,7 +362,19 @@ export default function ChatPage() {
       <YouTubeUrlModal 
         isOpen={yt.isModalOpen} 
         onClose={() => yt.setIsModalOpen(false)} 
-        onAdd={(video) => yt.requestPlay(video)} 
+        onAdd={async (video) => {
+          try {
+            await yt.saveSong({
+              videoId: video.videoId,
+              title: video.title,
+              thumbnail: video.thumbnail,
+              author: video.author
+            });
+            alert('Saved to your library!');
+          } catch(e) {
+            alert('Failed to save or already saved.');
+          }
+        }} 
       />
     </div>
   );

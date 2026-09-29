@@ -11,6 +11,7 @@ export function CallProvider({ children }) {
   
   const [callState, setCallState] = useState('idle'); // idle, ringing, connecting, connected, declined, ended
   const [callDetails, setCallDetails] = useState(null);
+  const [isCallMinimized, setIsCallMinimized] = useState(false);
   
   // Native WebRTC References (1-to-1 calls)
   const peerConnection = useRef(null);
@@ -43,6 +44,7 @@ export function CallProvider({ children }) {
     setLiveKitRoomName(null);
     setCallState('idle');
     setCallDetails(null);
+    setIsCallMinimized(false);
     setIsMuted(false);
     setIsVideoOff(false);
     iceCandidateQueue.current = [];
@@ -293,16 +295,22 @@ export function CallProvider({ children }) {
     }
   };
 
+  const [remoteVolume, setRemoteVolume] = useState(1);
+
   return (
     <CallContext.Provider value={{
       callState,
       callDetails,
+      isCallMinimized,
+      setIsCallMinimized,
       localMediaStream,
       remoteMediaStream,
       isMuted,
       isVideoOff,
       liveKitToken,
       liveKitRoomName,
+      remoteVolume,
+      setRemoteVolume,
       initiateCall,
       acceptCall,
       declineCall,

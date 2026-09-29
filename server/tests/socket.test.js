@@ -53,9 +53,19 @@ describe('Socket.IO Real-time Features (Phase 3 Checklist)', () => {
     client2 = Client(url, { extraHeaders: { cookie: `jwt=${token2}` } });
     clientUnauthorized = Client(url, { extraHeaders: { cookie: `jwt=${token3}` } });
 
-    await new Promise(r => client1.on('connect', r));
-    await new Promise(r => client2.on('connect', r));
-    await new Promise(r => clientUnauthorized.on('connect', r));
+    const connectClient = (client) => new Promise((resolve, reject) => {
+      client.on('connect', resolve);
+      client.on('connect_error', reject);
+    });
+
+    try {
+      await connectClient(client1);
+      await connectClient(client2);
+      await connectClient(clientUnauthorized);
+    } catch (err) {
+      console.error('Socket connection failed in test setup:', err);
+      throw err;
+    }
   });
 
   afterEach(() => {
@@ -146,6 +156,7 @@ describe('Socket.IO Real-time Features (Phase 3 Checklist)', () => {
 
   // 4. புதிதாக chat-ல் join செய்பவருக்கு current song state கிடைக்க வேண்டும்
   it('should send current state to newly joined users', (done) => {
+    client1.emit('conversation:join', conversationId);
     client2.emit('conversation:join', conversationId);
     
     client2.on('music:request_accept', (data) => {
