@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { X, Play, Pause, Plus, Trash2, GripVertical, SkipBack, SkipForward } from 'lucide-react';
+import { X, Play, Pause, Plus, Trash2, GripVertical, SkipBack, SkipForward, Clock, HardDrive, User as UserIcon } from 'lucide-react';
 import { useSocket } from '../context/SocketContext';
 import { useAudio } from '../context/AudioContext';
 import api from '../services/api';
@@ -17,6 +17,8 @@ export default function SharedPlaylist({ conversationId, partnerName, onClose })
   const [isSelectionModalOpen, setIsSelectionModalOpen] = useState(false);
   const { socket } = useSocket();
   const { playSong, togglePlay, currentSong, isPlaying } = useAudio();
+  const [activeTab, setActiveTab] = useState('playlist'); // 'playlist' | 'library'
+  const [librarySongs, setLibrarySongs] = useState([]);
   
   const [draggedIdx, setDraggedIdx] = useState(null);
 
@@ -29,14 +31,33 @@ export default function SharedPlaylist({ conversationId, partnerName, onClose })
         console.error('Failed to fetch playlist', e);
       }
     };
+    const fetchLibrary = async () => {
+      try {
+        const { data } = await api.get(`/songs/conversation/${conversationId}`);
+        setLibrarySongs(data);
+      } catch(e) {
+        console.error(e);
+      }
+    };
+
     fetchPlaylist();
+    fetchLibrary();
 
     if (socket) {
       const handleUpdate = (updatedPlaylist) => {
         setPlaylist(updatedPlaylist);
       };
       socket.on('playlist:updated', handleUpdate);
-      return () => socket.off('playlist:updated', handleUpdate);
+      
+      const handleNewSong = (song) => {
+        setLibrarySongs(prev => [song, ...prev]);
+      };
+      socket.on('music:uploaded', handleNewSong); // Optional if we emit this event
+      
+      return () => {
+        socket.off('playlist:updated', handleUpdate);
+        socket.off('music:uploaded', handleNewSong);
+      };
     }
   }, [conversationId, socket]);
 
@@ -143,7 +164,24 @@ export default function SharedPlaylist({ conversationId, partnerName, onClose })
         </button>
       </div>
 
-      {/* Playlist Controls */}
+      <div className="flex border-b border-white/5">
+        <button 
+          onClick={() => setActiveTab('playlist')}
+          className={`flex-1 py-3 text-sm font-semibold transition ${activeTab === 'playlist' ? 'text-purple-400 border-b-2 border-purple-400 bg-white/5' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}
+        >
+          Queue
+        </button>
+        <button 
+          onClick={() => setActiveTab('library')}
+          className={`flex-1 py-3 text-sm font-semibold transition ${activeTab === 'library' ? 'text-purple-400 border-b-2 border-purple-400 bg-white/5' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}
+        >
+          Library
+        </button>
+      </div>
+
+      {activeTab === 'playlist' ? (
+        <>
+          {/* Playlist Controls */}
       <div className="p-4 border-b border-white/5 bg-black/20 flex flex-col gap-3">
         <div className="flex items-center justify-center gap-6">
           <button onClick={playPrevious} className="p-2 text-gray-400 hover:text-white transition"><SkipBack size={20}/></button>
@@ -205,6 +243,60 @@ export default function SharedPlaylist({ conversationId, partnerName, onClose })
           })
         )}
       </div>
+      </>
+      ) : (
+        <div className="flex-1 overflow-y-auto p-2 space-y-2">
+          {librarySongs.length === 0 ? (
+             <div className="text-center p-8 text-gray-500 text-sm">
+                No songs uploaded in this chat yet.
+             </div>
+          ) : (
+             librarySongs.map((song) => (
+               <div key={song._id} className="bg-white/5 p-3 rounded-xl border border-white/10 hover:border-purple-500/30 transition group">
+                 <div className="flex items-start gap-3">
+                   <div 
+                     onClick={() => playSpecificSong(song)}
+                     className="w-10 h-10 rounded-lg bg-gray-800 flex items-center justify-center shrink-0 cursor-pointer relative overflow-hidden"
+                   >
+                     <div className="absolute inset-0 bg-purple-500/20 opacity-0 group-hover:opacity-100 transition flex items-center justify-center">
+                        <Play size={20} className="text-white fill-white ml-0.5" />
+                     </div>
+                     <Music size={20} className="text-gray-400 group-hover:opacity-0" />
+                   </div>
+                   <div className="flex-1 min-w-0">
+                     <h4 className="text-sm font-bold text-white truncate">{song.title}</h4>
+                     <p className="text-xs text-gray-400 truncate mb-2">{song.artist}</p>
+                     
+                     <div className="flex items-center gap-3 text-[10px] text-gray-500 flex-wrap">
+                        <span className="flex items-center gap-1"><UserIcon size={10} /> {song.uploadedBy?.name || 'Unknown'}</span>
+                        <span className="flex items-center gap-1"><Clock size={10} /> {formatTime(song.duration)}</span>
+                        <span className="flex items-center gap-1"><HardDrive size={10} /> {(song.fileSize / (1024 * 1024)).toFixed(1)} MB</span>
+                     </div>
+                   </div>
+                   
+                   <button 
+                     onClick={async () => {
+                       if (window.confirm('Delete this song from the library?')) {
+                         try {
+                           await api.delete(`/songs/${song._id}`);
+                           setLibrarySongs(prev => prev.filter(s => s._id !== song._id));
+                         } catch (e) {
+                           console.error(e);
+                           alert(e.response?.data?.error || 'Failed to delete');
+                         }
+                       }
+                     }}
+                     className="p-1.5 text-gray-500 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition"
+                     title="Delete Song"
+                   >
+                     <Trash2 size={16} />
+                   </button>
+                 </div>
+               </div>
+             ))
+          )}
+        </div>
+      )}
 
       {isSelectionModalOpen && (
         <SongSelectionModal 
