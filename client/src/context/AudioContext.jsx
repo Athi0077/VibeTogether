@@ -98,6 +98,9 @@ export function AudioProvider({ children }) {
               setCurrentSong(songObj);
               audio.src = data.playbackUrl;
               
+              // Fire and forget history tracking
+              api.post(`/songs/${songObj._id}/play`).catch(() => {});
+              
               await new Promise((resolve) => {
                 const onCanPlay = () => {
                   cleanup();
@@ -262,6 +265,11 @@ export function AudioProvider({ children }) {
       audio.src = playUrl;
       audio.load();
       setCurrentSong(songObj);
+      
+      // Fire and forget history tracking
+      if (songObj && songObj._id) {
+        api.post(`/songs/${songObj._id}/play`).catch(() => {});
+      }
     }
     
     // Unlock audio for mobile browsers with valid src

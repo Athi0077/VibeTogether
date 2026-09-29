@@ -12,7 +12,9 @@ const {
   getTrendingSongs,
   getLikedSongs,
   getPublicSongs,
-  searchSongs 
+  searchSongs,
+  recordPlayHistory,
+  getRecommendations 
 } = require('../controllers/songController');
 const { protect } = require('../middleware/authMiddleware');
 
@@ -23,9 +25,11 @@ router.use(protect);
 router.get('/library', getMyLibrary);
 router.get('/public', getPublicSongs);
 router.get('/search', searchSongs);
+router.get('/recommendations', getRecommendations);
 router.get('/trending', getTrendingSongs);
 router.get('/liked', getLikedSongs);
 router.post('/:songId/like', toggleLikeSong);
+router.post('/:songId/play', recordPlayHistory);
 router.post('/upload', upload.single('file'), uploadSong);
 router.post('/convert-only', upload.single('file'), convertOnly);
 router.get('/conversation/:conversationId', getSongsByConversation);

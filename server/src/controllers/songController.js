@@ -4,6 +4,7 @@ const Conversation = require('../models/Conversation');
 const User = require('../models/User');
 const crypto = require('crypto');
 const fs = require('fs');
+const ListeningHistory = require('../models/ListeningHistory');
 
 // Utility to check conversation membership
 const checkMembership = async (conversationId, userId) => {
@@ -338,6 +339,80 @@ const searchSongs = async (req, res, next) => {
   }
 };
 
+const recordPlayHistory = async (req, res, next) => {
+  try {
+    const { songId } = req.params;
+    
+    // Simple deduplication - don't record if same song was played in the last 1 minute
+    const oneMinuteAgo = new Date(Date.now() - 60000);
+    const recentPlay = await ListeningHistory.findOne({
+      userId: req.user._id,
+      songId,
+      playedAt: { $gte: oneMinuteAgo }
+    });
+
+    if (!recentPlay) {
+      await ListeningHistory.create({
+        userId: req.user._id,
+        songId
+      });
+      // Optionally increment a playCount on the song model
+      await Song.findByIdAndUpdate(songId, { $inc: { playCount: 1 } });
+    }
+
+    res.status(200).json({ success: true });
+  } catch (error) {
+    next(error);
+  }
+};
+
+const getRecommendations = async (req, res, next) => {
+  try {
+    // 1. Get user's recent history
+    const history = await ListeningHistory.find({ userId: req.user._id })
+      .sort({ playedAt: -1 })
+      .limit(10)
+      .populate('songId');
+
+    const recentSongIds = history.map(h => h.songId?._id).filter(Boolean);
+    const recentArtists = [...new Set(history.map(h => h.songId?.artist).filter(Boolean))];
+
+    // 2. Find songs from similar artists or just popular ones not in history
+    let recommendations = await Song.find({
+      visibility: 'public',
+      _id: { $nin: recentSongIds },
+      ...(recentArtists.length > 0 && { artist: { $in: recentArtists } })
+    }).populate('uploadedBy', 'name avatar').limit(10);
+
+    // 3. Fallback to random popular songs if not enough recommendations
+    if (recommendations.length < 5) {
+      const moreSongs = await Song.find({
+        visibility: 'public',
+        _id: { $nin: [...recentSongIds, ...recommendations.map(r => r._id)] }
+      })
+      .sort({ likesCount: -1 }) // or playCount if we added it
+      .limit(10 - recommendations.length)
+      .populate('uploadedBy', 'name avatar');
+      
+      recommendations = [...recommendations, ...moreSongs];
+    }
+
+    // Deduplicate by title
+    const uniqueSongs = [];
+    const seenTitles = new Set();
+    for (const song of recommendations) {
+      if (!seenTitles.has(song.title.toLowerCase())) {
+        seenTitles.add(song.title.toLowerCase());
+        uniqueSongs.push(song);
+      }
+    }
+
+    res.json(uniqueSongs);
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   uploadSong,
   getSongsByConversation,
@@ -350,4 +425,6 @@ module.exports = {
   getLikedSongs,
   getPublicSongs,
   searchSongs,
+  recordPlayHistory,
+  getRecommendations,
 };

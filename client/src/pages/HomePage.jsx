@@ -21,6 +21,7 @@ export default function HomePage() {
   const [trendingSongs, setTrendingSongs] = useState([]);
   const [likedSongs, setLikedSongs] = useState([]);
   const [publicSongs, setPublicSongs] = useState([]);
+  const [recommendedSongs, setRecommendedSongs] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedSong, setSelectedSong] = useState(null);
   const yt = useYouTube();
@@ -29,16 +30,18 @@ export default function HomePage() {
     const fetchData = async () => {
       try {
         setIsLoading(true);
-        const [friendsRes, trendingRes, likedRes, publicRes] = await Promise.all([
+        const [friendsRes, trendingRes, likedRes, publicRes, recsRes] = await Promise.all([
           api.get('/friends'),
           api.get('/songs/trending'),
           api.get('/songs/liked'),
-          api.get('/songs/public')
+          api.get('/songs/public'),
+          api.get('/songs/recommendations')
         ]);
         setFriends(friendsRes.data);
         setTrendingSongs(trendingRes.data);
         setLikedSongs(likedRes.data);
         setPublicSongs(publicRes.data);
+        setRecommendedSongs(recsRes.data);
       } catch (e) {
         console.error(e);
       } finally {
@@ -186,6 +189,15 @@ export default function HomePage() {
           )}
         </div>
       </motion.section>
+
+      {recommendedSongs.length > 0 && (
+        <motion.section variants={containerVariants} initial="hidden" animate="show" className="mb-10">
+          <h2 className="text-xl font-bold mb-4 text-purple-400">Recommended For You ✨</h2>
+          <div className="flex gap-4 overflow-x-auto pb-4 snap-x custom-scrollbar">
+            {recommendedSongs.map(renderSongCard)}
+          </div>
+        </motion.section>
+      )}
 
       <motion.section variants={containerVariants} initial="hidden" animate="show" className="mb-10">
         <h2 className="text-xl font-bold mb-4">Your Liked Songs ❤️</h2>
