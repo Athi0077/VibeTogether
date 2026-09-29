@@ -6,11 +6,27 @@ const Song = require('../src/models/Song');
 
 require('./setup');
 
-jest.mock('../src/services/storageService', () => ({
-  getUploadUrl: jest.fn().mockResolvedValue('https://mock-upload-url.com'),
-  getPlaybackUrl: jest.fn().mockResolvedValue('https://mock-playback-url.com'),
-  checkObjectExists: jest.fn().mockResolvedValue(true),
-  deleteObject: jest.fn().mockResolvedValue(),
+jest.mock('cloudinary', () => ({
+  v2: {
+    config: jest.fn(),
+    uploader: {
+      upload_stream: jest.fn((options, cb) => {
+        const stream = require('stream');
+        const pass = new stream.PassThrough();
+        pass.on('data', () => {});
+        pass.on('end', () => {
+          cb(null, {
+            public_id: 'mock_public_id',
+            secure_url: 'https://mock-url.com/song.mp3',
+            duration: 120,
+            format: 'mp3',
+            bytes: 5000000
+          });
+        });
+        return pass;
+      })
+    }
+  }
 }));
 
 describe('Song Endpoints', () => {
@@ -31,46 +47,6 @@ describe('Song Endpoints', () => {
     convId = conv._id.toString();
   });
 
-  it('should generate an upload URL', async () => {
-    const res = await request(app)
-      .post('/api/songs/upload-url')
-      .set('Cookie', userCookie)
-      .send({
-        conversationId: convId,
-        fileName: 'test.mp3',
-        contentType: 'audio/mpeg',
-        fileSize: 5000000
-      });
-      
-    expect(res.statusCode).toEqual(200);
-    expect(res.body).toHaveProperty('uploadUrl', 'https://mock-upload-url.com');
-    expect(res.body).toHaveProperty('objectKey');
-  });
-
-  it('should confirm an upload and save song', async () => {
-    const objectKey = 'songs/mock/test.mp3';
-    const res = await request(app)
-      .post('/api/songs/confirm-upload')
-      .set('Cookie', userCookie)
-      .send({
-        conversationId: convId,
-        objectKey,
-        title: 'Test Song',
-        artist: 'Test Artist',
-        duration: 120,
-        originalFileName: 'test.mp3',
-        fileSize: 5000000,
-        contentType: 'audio/mpeg'
-      });
-      
-    expect(res.statusCode).toEqual(201);
-    expect(res.body).toHaveProperty('_id');
-    expect(res.body.title).toEqual('Test Song');
-    
-    const dbSong = await Song.findOne({ objectKey });
-    expect(dbSong).not.toBeNull();
-  });
-
   it('should not allow access to a conversation the user is not in', async () => {
     const user2Res = await request(app).post('/api/auth/register').send({
       name: 'Hacker',
@@ -80,14 +56,10 @@ describe('Song Endpoints', () => {
     const hackerCookie = user2Res.headers['set-cookie'];
 
     const res = await request(app)
-      .post('/api/songs/upload-url')
+      .post('/api/songs/upload')
       .set('Cookie', hackerCookie)
-      .send({
-        conversationId: convId,
-        fileName: 'test.mp3',
-        contentType: 'audio/mpeg',
-        fileSize: 5000000
-      });
+      .field('conversationId', convId)
+      .attach('file', Buffer.from('mock audio content'), 'test.mp3');
       
     expect(res.statusCode).toEqual(403);
   });

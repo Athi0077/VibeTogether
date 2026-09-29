@@ -25,10 +25,13 @@ export function AudioProvider({ children }) {
   // Guard variables to prevent infinite socket broadcast loops
   const isRemoteActionRef = useRef(false);
   const serverRevisionRef = useRef(0);
+  const currentSongRef = useRef(null);
 
   useEffect(() => {
     if (!audioRef.current) {
-      audioRef.current = new Audio();
+      const audio = new Audio();
+      audio.crossOrigin = "use-credentials";
+      audioRef.current = audio;
     }
     
     const audio = audioRef.current;
@@ -87,7 +90,7 @@ export function AudioProvider({ children }) {
 
       try {
         // If it's a new song, load it
-        if (!currentSong || currentSong._id !== state.songId) {
+        if (!currentSongRef.current || currentSongRef.current._id !== state.songId) {
           let songObj = library.find(s => s._id === state.songId);
           setIsLoading(true);
           
@@ -95,6 +98,7 @@ export function AudioProvider({ children }) {
             const { data } = await api.get(`/songs/${state.songId}/playback-url`);
             songObj = songObj || data.song; // Use returned song data if not in library
             if (songObj) {
+              currentSongRef.current = songObj;
               setCurrentSong(songObj);
               audio.src = data.playbackUrl;
               
@@ -231,7 +235,7 @@ export function AudioProvider({ children }) {
       socket.off('music:rejected', handleMusicRejected);
       socket.off('music:stopped', handleMusicStopped);
     };
-  }, [socket, currentSong, library, activeConversationId]);
+  }, [socket, library, activeConversationId]);
 
   useEffect(() => {
     if (socket) {
@@ -264,6 +268,7 @@ export function AudioProvider({ children }) {
     if (playUrl) {
       audio.src = playUrl;
       audio.load();
+      currentSongRef.current = songObj;
       setCurrentSong(songObj);
       
       // Fire and forget history tracking
@@ -360,6 +365,7 @@ export function AudioProvider({ children }) {
       audio.removeAttribute('src');
     }
     setIsPlaying(false);
+    currentSongRef.current = null;
     setCurrentSong(null);
     setProgress(0);
     setSessionStatus('inactive');
@@ -380,7 +386,10 @@ export function AudioProvider({ children }) {
           audio.src = incomingRequest.playbackUrl;
           audio.load();
           const songObj = library.find(s => s._id === incomingRequest.songId) || incomingRequest.song;
-          if (songObj) setCurrentSong(songObj);
+          if (songObj) {
+            currentSongRef.current = songObj;
+            setCurrentSong(songObj);
+          }
         }
         
         // Unlock audio for mobile/browsers during user interaction with actual src

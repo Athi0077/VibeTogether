@@ -147,7 +147,14 @@ const streamSong = async (req, res, next) => {
     }
 
     https.get(song.secureUrl, options, (cloudinaryRes) => {
-      res.writeHead(cloudinaryRes.statusCode, cloudinaryRes.headers);
+      // Forward only media-specific headers so we don't overwrite CORS/Helmet headers
+      const safeHeaders = ['content-type', 'content-length', 'accept-ranges', 'content-range', 'cache-control', 'etag', 'last-modified'];
+      safeHeaders.forEach(h => {
+        if (cloudinaryRes.headers[h]) {
+          res.setHeader(h, cloudinaryRes.headers[h]);
+        }
+      });
+      res.status(cloudinaryRes.statusCode);
       
       // Stop downloading from Cloudinary if the client aborts/disconnects
       req.on('close', () => {

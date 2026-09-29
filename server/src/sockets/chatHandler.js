@@ -64,17 +64,17 @@ module.exports = (io, socket) => {
 
       const populatedMessage = await Message.findById(message._id).populate('senderId', 'name avatar');
 
-      // Emit to conversation room (so sender gets it if they have other tabs open)
-      io.to(`conv:${conversationId}`).emit('message:new', populatedMessage);
+      let targetIo = io.to(`conv:${conversationId}`);
       
-      // Also emit to user-specific room of the receiver
       const conv = await Conversation.findById(conversationId);
       if (conv) {
         const receiverId = conv.members.find(id => id.toString() !== user._id.toString());
         if (receiverId) {
-          io.to(`user:${receiverId.toString()}`).emit('message:new', populatedMessage);
+          targetIo = targetIo.to(`user:${receiverId.toString()}`);
         }
       }
+      
+      targetIo.emit('message:new', populatedMessage);
 
       if (typeof callback === 'function') {
         callback({ success: true, message: populatedMessage });

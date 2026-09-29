@@ -20,7 +20,9 @@ const app = express();
 app.set('trust proxy', 1); // Trust first proxy for Render
 
 // Middleware
-app.use(helmet());
+app.use(helmet({
+  crossOriginResourcePolicy: { policy: "cross-origin" }
+}));
 app.use(cors({
   origin: true, // Allow any origin to connect
   credentials: true

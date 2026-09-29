@@ -275,7 +275,7 @@ export default function ChatPage() {
                   <button onClick={() => initiateCall(activeConversation._id, 'audio', false)} className="p-2 hover:bg-white/5 rounded-full hover:text-white transition"><Phone size={20} /></button>
                   <button onClick={() => initiateCall(activeConversation._id, 'video', false)} className="p-2 hover:bg-white/5 rounded-full hover:text-white transition"><Video size={20} /></button>
                   <button onClick={() => setIsPlaylistOpen(!isPlaylistOpen)} className={`p-2 rounded-full transition ${isPlaylistOpen ? 'bg-purple-600 text-white' : 'hover:bg-white/5 hover:text-white'}`}><Music size={20} /></button>
-                  <button onClick={() => ytPlayer.setIsModalOpen(true)} className="p-2 hover:bg-white/5 rounded-full hover:text-red-500 transition"><MonitorPlay size={20} /></button>
+                  <button onClick={() => yt.setIsModalOpen(true)} className="p-2 hover:bg-white/5 rounded-full hover:text-red-500 transition"><MonitorPlay size={20} /></button>
                 </div>
               )}
             </header>

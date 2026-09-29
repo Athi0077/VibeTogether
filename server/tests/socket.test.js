@@ -56,6 +56,9 @@ describe('Socket.IO Real-time Features (Phase 3 Checklist)', () => {
   });
 
   afterEach(() => {
+    client1.removeAllListeners();
+    client2.removeAllListeners();
+    clientUnauthorized.removeAllListeners();
     client1.disconnect();
     client2.disconnect();
     clientUnauthorized.disconnect();
@@ -88,7 +91,7 @@ describe('Socket.IO Real-time Features (Phase 3 Checklist)', () => {
     client2.on('music:request_accept', (data) => {
       expect(data.songId).toBe('song123');
       // User 2 accepts
-      client2.emit('music:accept', { conversationId });
+      client2.emit('music:accept', { conversationId, requestId: data.requestId });
     });
 
     client2.on('music:state', (state) => {
@@ -114,34 +117,36 @@ describe('Socket.IO Real-time Features (Phase 3 Checklist)', () => {
     let stateUpdates = 0;
     client2.on('music:state', (state) => {
       stateUpdates++;
-      if (stateUpdates === 1) { // 1st update: Pause
+      if (stateUpdates === 1) { // 1st update: Play from accept
+        expect(state.isPlaying).toBe(true);
+      } else if (stateUpdates === 2) { // 2nd update: Pause
         expect(state.isPlaying).toBe(false);
         expect(state.playbackPosition).toBe(15);
         // User 1 seeks
         client1.emit('music:seek', { conversationId, playbackPosition: 30 });
-      } else if (stateUpdates === 2) { // 2nd update: Seek
+      } else if (stateUpdates === 3) { // 3rd update: Seek
         expect(state.playbackPosition).toBe(30);
         done();
       }
     });
 
     setTimeout(() => {
-      // First, need to set it to active state!
-      client1.emit('music:play', { conversationId, songId: 'dummy', playbackPosition: 0 });
-      setTimeout(() => {
-        client1.emit('music:accept', { conversationId }); // To force active state for tests
+      client1.on('music:pending', (data) => {
+        client1.emit('music:accept', { conversationId, requestId: data.requestId }); // To force active state
         setTimeout(() => {
           client1.emit('music:pause', { conversationId, playbackPosition: 15 });
         }, 20);
-      }, 20);
+      });
+      client1.emit('music:play', { conversationId, songId: 'dummy', playbackPosition: 0 });
     }, 50);
   });
 
   // 4. புதிதாக chat-ல் join செய்பவருக்கு current song state கிடைக்க வேண்டும்
   it('should send current state to newly joined users', (done) => {
-    // User 1 plays a song and forces active
+    client1.on('music:pending', (data) => {
+      client1.emit('music:accept', { conversationId, requestId: data.requestId });
+    });
     client1.emit('music:play', { conversationId, songId: 'song456', playbackPosition: 10 });
-    client1.emit('music:accept', { conversationId });
     
     // User 2 joins later and requests state
     setTimeout(() => {
@@ -180,8 +185,10 @@ describe('Socket.IO Real-time Features (Phase 3 Checklist)', () => {
 
   // 6. Internet reconnect ஆனதும் playback state மீண்டும் sync ஆக வேண்டும்
   it('should resync upon reconnection', (done) => {
+    client1.on('music:pending', (data) => {
+      client1.emit('music:accept', { conversationId, requestId: data.requestId });
+    });
     client1.emit('music:play', { conversationId, songId: 'song789', playbackPosition: 50 });
-    client1.emit('music:accept', { conversationId });
     
     setTimeout(() => {
       client2.disconnect(); // simulate disconnect
